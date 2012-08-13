@@ -1,0 +1,8 @@
+\set HISTSIZE 5000
+\set FETCH_COUNT 1000
+\set HISTCONTROL ignoredups
+\set PROMPT1 '%M:%> %n@%/%R%# '
+\set PROMPT2 :PROMPT1
+\set PROMPT3 '>> '
+\pset pager off
+\timing
