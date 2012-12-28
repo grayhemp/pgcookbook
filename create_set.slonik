@@ -1,3 +1,3 @@
-include <cluster_config.slonik>;
+include <config_cluster.slonik>;
 
 create set (id = @main, origin = @master, comment = 'Common tables');

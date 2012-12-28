@@ -1,3 +1,3 @@
-include <cluster_config.slonik>;
+include <config_cluster.slonik>;
 
 store node (id = @slave1, event node = @master, comment = 'Slave1 node');
