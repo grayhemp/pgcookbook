@@ -1,7 +1,12 @@
 BEGIN;
 
 CREATE TEMP SEQUENCE tab_seq;
+SELECT setval(
+    'tab_seq', (SELECT max(tab_id) FROM _slony.sl_table WHERE tab_set = 1));
+
 CREATE TEMP SEQUENCE seq_seq;
+SELECT setval(
+    'seq_seq', (SELECT max(seq_id) FROM _slony.sl_sequence WHERE seq_set = 1));
 
 SELECT
     'set add table (set id = @main, origin = @master, id = ' ||
@@ -40,7 +45,10 @@ FROM (
             c.relkind = 'r' AND
             n.nspname NOT LIKE 'pg_%' AND
             n.nspname <> '_slony' AND
-            n.nspname <> 'information_schema'
+            n.nspname <> 'information_schema' AND
+            NOT EXISTS (
+                SELECT 1 FROM _slony.sl_table
+                WHERE tab_relname = c.relname AND tab_nspname = n.nspname)
         ORDER BY has_pk DESC, fullname
     ) AS t1
 WHERE has_pk IS true OR uniq_index IS NOT NULL
@@ -56,7 +64,10 @@ FROM (
         c.relkind = 'S' AND
         n.nspname NOT LIKE 'pg_%' AND
         n.nspname <> '_slony' AND
-        n.nspname <> 'information_schema'
+        n.nspname <> 'information_schema' AND
+        NOT EXISTS (
+            SELECT 1 FROM _slony.sl_sequence
+            WHERE seq_relname = c.relname AND seq_nspname = n.nspname)
     ORDER BY fullname
 ) AS t1;
 
