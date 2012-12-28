@@ -1,0 +1,3 @@
+include <cluster_config.slonik>;
+
+init cluster (id = @master, comment = 'Master node');

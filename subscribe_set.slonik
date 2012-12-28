@@ -1,0 +1,7 @@
+include <cluster_config.slonik>;
+
+subscribe set (id = @main, provider = @master, receiver = @slave1, forward = yes);
+
+sync (id = @master);
+
+wait for event (origin = all, confirmed = all, wait on = @master, timeout = 0);

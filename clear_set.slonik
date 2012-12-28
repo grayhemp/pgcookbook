@@ -1,0 +1,4 @@
+include <cluster_config.slonik>;
+
+set drop table (origin = @master, id = 1);
+set drop sequence (origin = @master, id = 2);
