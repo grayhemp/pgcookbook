@@ -17,3 +17,12 @@ doing things appear. Stay tuned.
 ## Authors
 
 - [Sergey Konoplev](mailto:gray.ru@gmail.com)
+
+## Contributors
+
+Thanks you:
+
+- [PostgreSQL-Consulting.com](http://www.postgresql-consulting.com)
+  for lots of testing
+- [Maxim Boguk](mailto:maxim.boguk@gmail.com) for insights, useful
+  hints and supervising
