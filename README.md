@@ -20,7 +20,7 @@ doing things appear. Stay tuned.
 
 ## Contributors
 
-Thanks you:
+Thank you:
 
 - [PostgreSQL-Consulting.com](http://www.postgresql-consulting.com)
   for lots of testing
