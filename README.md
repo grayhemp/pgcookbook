@@ -1,7 +1,9 @@
 # PgCookbook - a PostgreSQL documentation project
 
-Instructions and notes might contain links to scripts and
-configuration files under the repository.
+The project is a constantly updating set of articles, scripts and
+configuration files to help maintain PostgreSQL. The articles and
+files might be modified as new versions of software or new ways of
+doing things appear. Stay tuned.
 
 ## Articles
 
