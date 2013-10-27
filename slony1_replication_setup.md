@@ -33,7 +33,7 @@ tablespaces) to db2. Assuming we are logged on db1 with user
     pg_dump -s -N _slony -C billing | psql -h db2
 
 Log in as `root` and go to `/etc/slony1`. Create the `billing`
-directory and `cd` there. Copy [slon.conf][] there and edit the
+directory and `cd` there. Copy [slon.conf] there and edit the
 `conn_info` property.
 
 Do the same on db2.
@@ -65,21 +65,21 @@ directory to keep customized Slony1 scripts and `cd` into it.
     mkdir -p ~/slony/billing
     cd ~/slony/billing
 
-Copy and customize [config_cluster.slonik][] modifying connection
+Copy and customize [config_cluster.slonik] modifying connection
 settings appropriately.
 
 Next we need to initialize the replication cluster and create the
 replication set. Copy `.slonik` files below or just use the repository
 work directory path if you checked it out.
 
-Skim the content of [init_cluster.slonik][] and [create_set.slonik][]
+Skim the content of [init_cluster.slonik] and [create_set.slonik]
 and apply them.
 
     slonik init_cluster.slonik
     slonik create_set.slonik
 
 Ensure that all the tables that are supposed to be replicated have
-unique or primary keys by [get_tables_without_pk_and_uniqs.sql][].
+unique or primary keys by [get_tables_without_pk_and_uniqs.sql].
 
     psql -d billing -f get_tables_without_pk_and_uniqs.sql
 
@@ -87,10 +87,10 @@ If some does not have you need to create the keys. It is required by
 Slony1.
 
 After that we need to add all the tables and sequences to the
-replication. Copy and customize the sample [populate_set.slonik][]
+replication. Copy and customize the sample [populate_set.slonik]
 file.
 
-To automate the routine use [generate_full_slonik_set.sql][].
+To automate the routine use [generate_full_slonik_set.sql].
 
 Apply additional filtration (`grep`, etc) if you need some particular
 schema for example.
@@ -99,34 +99,34 @@ schema for example.
         grep 'someschema\.' >> populate_set.slonik
 
 If you need to add missing tables and sequences to existing
-replication use [generate_incremental_slonik_set.sql][].
+replication use [generate_incremental_slonik_set.sql].
 
 Do not forget to review the resulting file and apply it.
 
     slonik populate_set.slonik
 
 If you have found out that you do not need to replicate some tables or
-sequences copy and customize the [clear_set.slonik][] sample file. To
-automate the routine use [generate_slonik_set_to_drop.sql][].
+sequences copy and customize the [clear_set.slonik] sample file. To
+automate the routine use [generate_slonik_set_to_drop.sql].
 
 Check whether all the necessary tables are added to the replication by
-[get_not_in_slony_tables_and_sequences.sql][].
+[get_not_in_slony_tables_and_sequences.sql].
 
     psql -d billing -f get_not_in_slony_tables_and_sequences.sql
 
 Now initialize the replication on the db2 server by creating the slave
-node with [store_node.slonik][]. Skim the file before running the
+node with [store_node.slonik]. Skim the file before running the
 command.
 
     slonik store_node.slonik
 
-Set the replication's paths by [store_path.slonik][] checking the file
+Set the replication's paths by [store_path.slonik] checking the file
 preliminary.
 
     slonik store_path.slonik
 
 And finally subscribe the created set, sync it and start replicating
-by [subscribe_set.slonik][].
+by [subscribe_set.slonik].
 
     slonik subscribe_set.slonik
 
