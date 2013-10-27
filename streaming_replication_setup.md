@@ -166,8 +166,8 @@ Tell the primary server that we are starting a backup.
      0/3000020
     (1 row)
 
-Do rsync the data from db1 to db2 (see also
-[ssh_without_password_setup.md][SSH Without Password Setup]).
+Do rsync the data from db1 to db2 (see also [SSH Without Password
+Setup](ssh_without_password_setup.md)).
 
     rsync -av --delete -z --progress --compress-level=1 \
         --exclude pg_xlog --exclude *.conf --exclude postgresql.pid \

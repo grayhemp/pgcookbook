@@ -40,4 +40,4 @@ turn it on.
 
     \timing
 
-This [.psqlrc] file can be found in the repository.
+This [.psqlrc](.psqlrc) file can be found in the repository.
