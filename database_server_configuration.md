@@ -59,6 +59,15 @@ On FreeBSD add `kern.ipc.semmap` to these settings too.
 
     kern.ipc.semmap=256
 
+On FreeBSD you will also need to update `/boot/loader.conf` with
+`SEMMNS` and `SEMMNI` settings, see PostgreSQL documentation for more
+information about them.
+
+    kern.ipc.semmns=32000
+    kern.ipc.semmni=128
+
+It requires you to reboot.
+
 Turn off swapping if you need it. Note that it is not recommended to
 do for low RAM servers mostly, if they are not dedicated for
 PostgreSQL as swapping may free some memory by moving some
@@ -168,15 +177,6 @@ Where `PID` is a process ID of any running postgres process.
 And this one to check if it used at all.
 
     cat /proc/meminfo | grep -i huge
-
-On FreeBSD you will also need to update `/boot/loader.conf` with
-`SEMMNS` and `SEMMNI` settings, see PostgreSQL documentation for more
-information about them.
-
-    kern.ipc.semmns=32000
-    kern.ipc.semmni=128
-
-It requires you to reboot.
 
 Transparent huge pages defragmentation could lead to unpredictable
 database stalls on some Linux kernels. The recommended settings for
