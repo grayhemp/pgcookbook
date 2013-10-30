@@ -35,9 +35,10 @@ one by one.
 
     sysctl -p /etc/sysctl.conf
 
-If you are on `>=9.3` you not longer need the next step. Set the
-`SHMMAX` and `SHMALL` kernel settings accordingly to the shared memory
-amount assumed to be used.
+If you are on `>=9.3` you not longer need the next step.
+
+Set the `SHMMAX` and `SHMALL` kernel settings accordingly to the
+shared memory amount assumed to be used.
 
 Let us assume that we want to set shared buffers to 25% of RAM. Note
 that shared buffers should be set slightly less than
@@ -110,8 +111,13 @@ PostgreSQL.
 
     kernel.sched_autogroup_enabled = 0
 
-Setup `hugepages` for Linux. Do not forget to replace `110` with your
-`postgres` group in `vm.hugetlb_shm_group`.
+Setup `hugepages` to be used by PostgreSQL on Linux. On 9.3 you can
+not use this feature because of a new memory management that do not
+support it. However, you can use [this patch][2] to overcome this
+restriction. Hope it will be included in 9.4.
+
+Do not forget to replace `110` with your `postgres` group in
+`vm.hugetlb_shm_group`.
 
     vm.hugetlb_shm_group = 110
     vm.hugepages_treat_as_movable = 0
@@ -225,3 +231,4 @@ configuration (and probably its users configuration). Restart
 PostgreSQL and the connection pooler.
 
 [1]: http://oss.linbit.com/hugetlb/
+[2]: http://www.postgresql.org/message-id/flat/CA+TgmoZypzzdyVj1cpPJ9O-Nh-A9_Uqdz5w4Ete_QzMEoX01-Q@mail.gmail.com
