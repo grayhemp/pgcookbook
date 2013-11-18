@@ -2,10 +2,10 @@
 
 ## Slony1 Replication Setup
 
-We have two servers, db1 (192.168.0.1) and db2 (192.168.0.2), with
-PostgreSQL installed and listening the 5432 ports. The db1 instance
-houses a `billing` database. The goal is to setup a replication of
-this database to the db2 server using Slony1.
+We have two servers, `host1` (192.168.0.1) and `host2` (192.168.0.2),
+with PostgreSQL installed and listening the 5432 ports. The `host1`
+instance houses a `billing` database. The goal is to setup a
+replication of this database to the `host2` server using Slony1.
 
 First, create a `slony` user that will be used for replication
 purposes. We will create it as a superuser to simplify things. If you
@@ -26,17 +26,17 @@ and between both hosts in `pg_hba.conf` for this user.
     host    billing         slony      192.168.0.2/32          trust
 
 Now we need to copy the `billing` schema and globals (roles and
-tablespaces) to db2. Assuming we are logged on db1 with user
+tablespaces) to `host2`. Assuming we are logged on `host1` with user
 `postgres`.
 
-    pg_dumpall -g | psql -h db2
-    pg_dump -s -N _slony -C billing | psql -h db2
+    pg_dumpall -g | psql -h host2
+    pg_dump -s -N _slony -C billing | psql -h host2
 
 Log in as `root` and go to `/etc/slony1`. Create the `billing`
 directory and `cd` there. Copy [slon.conf](slony/slon.conf) there and
 edit the `conn_info` property.
 
-Do the same on db2.
+Do the same on `host2`.
 
 Restart the Slony1 service on both servers.
 
@@ -59,7 +59,7 @@ machines again.
 
     tail -f /var/log/slony1/slon-billing.log
 
-On db1 log in back with `postgres` user and create a `~/slony/billing`
+On `host1` log in back with `postgres` user and create a `~/slony/billing`
 directory to keep customized Slony1 scripts and `cd` into it.
 
     mkdir -p ~/slony/billing
@@ -120,9 +120,9 @@ Check whether all the necessary tables are added to the replication by
 
     psql -d billing -f get_not_in_slony_tables_and_sequences.sql
 
-Now initialize the replication on the db2 server by creating the slave
-node with [store_node.slonik](slony/store_node.slonik). Skim the file
-before running the command.
+Now initialize the replication on the `host2` server by creating the
+slave node with [store_node.slonik](slony/store_node.slonik). Skim the
+file before running the command.
 
     slonik store_node.slonik
 

@@ -2,9 +2,10 @@
 
 ## Streaming Replication Setup
 
-Suppose we have two instances running on two servers db1 (192.168.0.1)
-and db2 (192.168.0.2), each serving the port 5432. We need to setup a
-streaming replication from db1 (primary) to db2 (standby).
+Suppose we have two instances running on two servers `host1`
+(192.168.0.1) and `host2` (192.168.0.2), each serving the
+port 5432. We need to setup a streaming replication from `host1`
+(primary) to `host2` (standby).
 
 Before starting preparation of the database servers check the
 connection and the bandwidth between servers. It must be enough to
@@ -13,17 +14,17 @@ recommended to forward the port from master to replica using
 ssh-tunneling with compression enabled. In future versions of
 PostgreSQL the compression will be implemented in the DBMS itself.
 
-Start the following sniplet via the `screen` utility on db1. It will
-forward the `localhost:5432` on db1 to the `localhost:2345` on db2
-with compression.
+Start the following sniplet via the `screen` utility on `host1`. It
+will forward the `localhost:5432` on `host1` to the `localhost:2345`
+on `host2` with compression.
 
     while [ ! -f /tmp/stop ]; do
         ssh -C -o ExitOnForwardFailure=yes -R 2345:localhost:5432 \
-	    db2 "while nc -zv localhost 2345; do sleep 5; done";
+	    host2 "while nc -zv localhost 2345; do sleep 5; done";
         sleep 5;
     done
 
-Then we need to prepare db1.
+Then we need to prepare `host1`.
 
 Edit the `postgresql.conf`.
 
@@ -79,7 +80,7 @@ it is performed with `root`.
 
     /etc/init.d/postgresql restart
 
-Now it is time to configure db2.
+Now it is time to configure `host2`.
 
 Edit the `postgresql.conf`.
 
@@ -143,7 +144,7 @@ content.
 
 Run the `pg_basebackup` tool specifiying the data directory.
 
-    pg_basebackup -v -P -c fast -h db1 -U replica -D /db/data
+    pg_basebackup -v -P -c fast -h host1 -U replica -D /db/data
 
 Restore the configuration from the backup.
 
@@ -166,12 +167,12 @@ Tell the primary server that we are starting a backup.
      0/3000020
     (1 row)
 
-Do rsync the data from db1 to db2 (see also [SSH Without Password
+Do rsync the data from `host1` to `host2` (see also [SSH Without Password
 Setup](ssh_without_password_setup.md)).
 
     rsync -av --delete -z --progress --compress-level=1 \
         --exclude pg_xlog --exclude *.conf --exclude postgresql.pid \
-        /db/data db2:/db/
+        /db/data host2:/db/
 
 Repeat this for every tablespace of the database.
 
@@ -182,7 +183,7 @@ Tell the primary server to stop the backup.
      0/30000D8
     (1 row)
 
-Now everything is ready to start the standby on db2.
+Now everything is ready to start the standby on `host2`.
 
     /etc/init.d/postgresql start
 
@@ -203,12 +204,12 @@ And this in the primary logs.
 You can additionally test the replication directly, just like it is
 shown below.
 
-On db1 create a table.
+On `host1` create a table.
 
     psql somedb -c 'CREATE TABLE t (t text);'
     CREATE TABLE
 
-And check it on db2.
+And check it on `host2`.
 
     psql somedb -c '\dt t'
             List of relations
