@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# config.sh.example - example configuration.
+#
+# Rename it to config.sh and adjust parameters for your needs.
+#
+# Copyright (c) 2013 Sergey Konoplev
+#
+# Sergey Konoplev <gray.ru@gmail.com>
+
+test -z $PORT && PORT=
+test -z $HOST && HOST=
+test -z $UNAME && UNAME=
+
+DSN="$(test ! -z $PORT && echo '-p' $PORT) \
+     $(test ! -z $HOST && echo '-h' $HOST) \
+     $(test ! -z $UNAME && echo '-U' $UNAME)"
+
+PSQL="/usr/bin/psql $DSN"
+PGDUMP="/usr/bin/pg_dump $DSN"
+PGRESTORE="/usr/bin/pg_restore $DSN"
+PGDUMPALL="/usr/bin/pg_dumpall $DSN"
+RSYNC='/usr/bin/rsync -aq'
+SSH='/usr/bin/ssh'
+
+TUNNEL_PORT=2345
+TUNNEL_HOST_PORT=5432
+TUNNEL_HOST='host2'
+TUNNEL_COMP_LEVEL=2
+TUNNEL_RETRY_DELAY=60
+TUNNEL_LOCK_FILE='/tmp/ssh_tunnel.lock'
+
+DUMPS_DBNAME_LIST='dbname1 dbname2'
+DUMPS_LOCAL_DIR=
+DUMPS_ARCHIVE_DIR='/storage/dumps'
+DUMPS_KEEP_DAILY_PARTS='3 days'
+DUMPS_KEEP_WEEKLY_PARTS='1 month'
+DUMPS_KEEP_MONTHLY_PARTS='1 year'
+
+test -z $RESTORE_DROP && RESTORE_DROP=true
+test -z $RESTORE_DBNAME && RESTORE_DBNAME='dbname2_latest'
+test -z $RESTORE_FILE && \
+    RESTORE_FILE=$( \
+        find $DUMPS_ARCHIVE_DIR -maxdepth 1 -mindepth 1 | \
+        sort | tail -n 1)'/dbname2.dump.gz'
+RESTORE_THREADS=4
+RESTORE_FILTER_MASK=$(cat <<EOF
+temp1|temp2
+EOF
+)
+RESTORE_FILTER_SQL=$(cat <<EOF
+    SELECT schemaname, tablename FROM pg_tables
+    WHERE tablename ~ '$RESTORE_FILTER_MASK'
+EOF
+)
+RESTORE_FILTER_DATA_MASK=$(cat <<EOF
+log1|log2
+EOF
+)
+RESTORE_FILTER_DATA_SQL=$(cat <<EOF
+    SELECT schemaname, tablename FROM pg_tables
+    WHERE tablename ~ '$RESTORE_FILTER_DATA_MASK'
+EOF
+)
+RESTORE_FILTER_DATA_PART_MASK=$(cat <<EOF
+data1|data2
+EOF
+)
+RESTORE_FILTER_DATA_PART_COND=$(cat <<EOF
+status <> 1 OR deleted
+EOF
+)
+RESTORE_FILTER_DATA_PART_SQL=$(cat <<EOF
+    SELECT
+        schemaname, tablename,
+        '$RESTORE_FILTER_DATA_PART_COND' AS conditions
+    FROM pg_tables
+    WHERE tablename ~ '$RESTORE_FILTER_DATA_PART_MASK'
+EOF
+)
+
+ARCHIVE_DBNAME_LIST='dbname1 dbname2'
+ARCHIVE_LOCAL_DIR=
+ARCHIVE_ARCHIVE_DIR='/storage/parts'
+ARCHIVE_TYPE1_PARTS_KEEP='1 year'
+ARCHIVE_TYPE1_PARTS_MASK=$(cat <<EOF
+table1|table2
+EOF
+)
+ARCHIVE_TYPE2_PARTS_KEEP='2 years'
+ARCHIVE_TYPE2_PARTS_MASK=$(cat <<EOF
+table3|table4
+EOF
+)
+ARCHIVE_PARTS_SQL=$(cat <<EOF
+    SELECT schemaname, tablename
+    FROM pg_tables
+    WHERE
+        tablename ~ E'^$ARCHIVE_TYPE1_PARTS_MASK\\\\d{4}\\\\d{2}$' AND
+        to_timestamp(
+            regexp_replace(tablename, '$ARCHIVE_TYPE1_PARTS_MASK', ''),
+            'YYYYMM') < date_trunc('month', now()) -
+            '$ARCHIVE_KEEP_TYPE1_PARTS'::interval
+    UNION
+    SELECT schemaname, tablename
+    FROM pg_tables
+    WHERE
+        tablename ~ E'^$ARCHIVE_TYPE2_PARTS_MASK\\\\d{4}\\\\d{2}$' AND
+        to_timestamp(
+            regexp_replace(tablename, '$ARCHIVE_TYPE2_PARTS_MASK', ''),
+            'YYYYMM') < date_trunc('month', now()) -
+            '$ARCHIVE_KEEP_TYPE2_PARTS'::interval
+    ORDER BY 1, 2
+EOF
+)
+function ARCHIVE_COMMAND_BEFORE_DROP() {
+    /usr/bin/londiste /etc/skytools/londiste-host2-$1.ini provider remove $2
+}
+function ARCHIVE_COMMAND_AFTER_DROP() {
+    $PSQL -h host2 $1 -c "DROP TABLE $2"
+}
+
+test -z $STAT_SNAPSHOT && STAT_SNAPSHOT=false
+STAT_DBNAME='dbname1'
+STAT_SINCE=$(date -I)
+STAT_TILL=$(date -I --date='+1 day')
+STAT_N=10
+STAT_ORDER=0
