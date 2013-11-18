@@ -11,18 +11,9 @@ Before starting preparation of the database servers check the
 connection and the bandwidth between servers. It must be enough to
 transmit your new WAL files. If the situation is not very good it is
 recommended to forward the port from master to replica using
-ssh-tunneling with compression enabled. In future versions of
-PostgreSQL the compression will be implemented in the DBMS itself.
-
-Start the following sniplet via the `screen` utility on `host1`. It
-will forward the `localhost:5432` on `host1` to the `localhost:2345`
-on `host2` with compression.
-
-    while [ ! -f /tmp/stop ]; do
-        ssh -C -o ExitOnForwardFailure=yes -R 2345:localhost:5432 \
-	    host2 "while nc -zv localhost 2345; do sleep 5; done";
-        sleep 5;
-    done
+[SSH-tunneling with compression](ssh_tunnel_with_compression_setup.md)
+enabled. In future versions of PostgreSQL the compression will be
+implemented in the DBMS itself.
 
 Then we need to prepare `host1`.
 
