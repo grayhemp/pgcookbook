@@ -15,6 +15,11 @@ doing things appear. Stay tuned.
 - [Switching To Another Server With PgBouncer](switching_to_another_server_with_pgbouncer.md)
 - [SSH-Tunnel With Compression Setup](ssh_tunnel_with_compression_setup.md)
 
+## See Also
+
+- [PgToolkit](https://github.com/grayhemp/pgtoolkit) - tools for
+  PostgreSQL maintenance
+
 ## Authors
 
 - [Sergey Konoplev](mailto:gray.ru@gmail.com)
