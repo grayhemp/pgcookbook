@@ -113,7 +113,13 @@ determine what controller is installed.
 On Linux with many processes (eg. client connections) increase this
 setting to prevent the scheduler breakdown.
 
+For kernel versions `<3.11`.
+
     kernel.sched_migration_cost = 5000000
+
+For `>=3.11`.
+
+    kernel.sched_migration_cost_ns = 5000000
 
 It must be turned off on server Linux systems to provide more CPU to
 PostgreSQL.
