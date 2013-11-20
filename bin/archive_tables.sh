@@ -37,7 +37,7 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
         die "Can not make a database directory for $dbname: $error."
 
     for part in $part_list; do
-        file=$part.$ts.dump.gz
+        file=$part.$ts.dump
 
         if [ $ARCHIVE_LOCAL_DIR != $ARCHIVE_ARCHIVE_DIR ]; then
             test -f $ARCHIVE_LOCAL_DIR/$dbname/$file && \
