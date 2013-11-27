@@ -122,7 +122,7 @@ function ARCHIVE_COMMAND_AFTER_DROP() {
 
 test -z $STAT_SNAPSHOT && STAT_SNAPSHOT=false
 STAT_DBNAME='dbname1'
-STAT_SINCE=$(date -I)
-STAT_TILL=$(date -I --date='+1 day')
+test -z $STAT_SINCE && STAT_SINCE=$(date -I)
+test -z $STAT_TILL && STAT_TILL=$(date -I --date='+1 day')
 STAT_N=10
 STAT_ORDER=0
