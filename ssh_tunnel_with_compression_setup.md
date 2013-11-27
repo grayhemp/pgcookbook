@@ -38,7 +38,7 @@ The script assumes that you have already [setup SSH without
 password](ssh_without_password_setup.md). Just run the script on
 `host1`.
 
-    sh ssh_tunnel.sh
+    bash ssh_tunnel.sh
 
 And you will be able to communicate with port 5432 on `host1` via 2345
 on `host2` with transparent compression.
