@@ -9,12 +9,12 @@ doing things appear. Stay tuned.
 
 - [Database Server Configuration](database_server_configuration.md)
 - [Explaining .psqlrc Startup File](explaining_psqlrc_startup_file.md)
-- [SSH Without Password Setup](ssh_without_password_setup.md)
+- [SSH without Password Setup](ssh_without_password_setup.md)
 - [Streaming Replication Setup](streaming_replication_setup.md)
 - [Slony1 Replication Setup](slony1_replication_setup.md)
-- [Switching To Another Server With PgBouncer](switching_to_another_server_with_pgbouncer.md)
-- [SSH-Tunnel With Compression Setup](ssh_tunnel_with_compression_setup.md)
-- [Statement Statistics Collecting And Reporting](statement_statistics_collecting_and_reporting.md)
+- [Switching to Another Server with PgBouncer](switching_to_another_server_with_pgbouncer.md)
+- [SSH-Tunnel with Compression Setup](ssh_tunnel_with_compression_setup.md)
+- [Statement Statistics Collecting and Reporting](statement_statistics_collecting_and_reporting.md)
 - [SQL Dumps Management](sql_dumps_management.md)
 
 ## See Also

@@ -1,6 +1,6 @@
 # PgCookbook - a PostgreSQL documentation project
 
-## SSH-Tunnel With Compression Setup
+## SSH-Tunnel with Compression Setup
 
 Let us assume we have two servers `host1` (192.168.0.1) and `host2`
 (192.168.0.2) on with PostgreSQL on ports 5432. They exchange with

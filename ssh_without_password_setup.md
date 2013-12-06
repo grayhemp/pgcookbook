@@ -1,6 +1,6 @@
 # PgCookbook - a PostgreSQL documentation project
 
-## SSH Without Password Setup
+## SSH without Password Setup
 
 Often, when dealing with more than one database server, you need to
 have an easy file system level access configured between them. For

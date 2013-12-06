@@ -1,6 +1,6 @@
 # PgCookbook - a PostgreSQL documentation project
 
-## Statement Statistics Collecting And Reporting
+## Statement Statistics Collecting and Reporting
 
 There is an extension named [pg_stat_statements] in PostgreSQL
 distributive. In short, it accumulates statement statistics in a

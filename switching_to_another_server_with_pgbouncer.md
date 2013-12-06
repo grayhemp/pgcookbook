@@ -1,6 +1,6 @@
 # PgCookbook - a PostgreSQL documentation project
 
-## Switching To Another Server With PgBouncer
+## Switching to Another Server with PgBouncer
 
 Does not matter what replication tools you use it is always important
 to switch servers as gently as possible and with minimum downtime.
