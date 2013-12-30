@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# archive_partitions.sh - tables archiving script.
+# archive_tables.sh - tables archiving script.
 #
 # For each database in ARCHIVE_DBNAME_LIST makes a compressed SQL dump
 # of each table returned by ARCHIVE_PARTS_SQL to ARCHIVE_LOCAL_DIR,
