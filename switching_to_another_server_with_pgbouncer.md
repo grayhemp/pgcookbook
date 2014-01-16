@@ -90,8 +90,8 @@ Always have the query below ready in case if something long running
 appear to stop it, because it might hang everything for an indefinite
 period.
 
-SELECT pg_terminate_backend(pid) FROM pg_stat_activity
-WHERE now() - xact_start > '3 seconds';
+    SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+    WHERE now() - xact_start > '3 seconds';
 
 Then promote the slave (`host2`) as a master and remove the pause from
 `pgbouncer`.
