@@ -49,8 +49,11 @@ approximate downtime.
 
 For Slony1 write a script to do the promotion automatically.
 
-Preliminary check if there are some long queries working on the
-master.
+Keep in mind long running transactions. I always turn off all the
+`cron` jobs and other stuff that might cause them before switching
+over.
+
+Preliminary check if there are some long transactions on the master.
 
     SELECT now() - xact_start, procpid, current_query
     FROM pg_stat_activity 
@@ -72,17 +75,31 @@ the `pgbouncer` on the master (`host1`) to redirect clients.
 And then promote the slave (`host2`) as a new master with your
 replication tool.
 
-Otherwise, if pgbouncer `>=1.5.3`, you can do it more gently way and
+Otherwise, if `pgbouncer` `>=1.5.3`, you can do it more gently way and
 transparent for clients so they will not notice anything except maybe
 a small delay.
 
     /etc/init.d/pgbouncer pause
     /etc/init.d/pgbouncer reload
 
+If your package does not provide a `pause` command in the script,
+you can do it via console, by connecting to `pgbouncer` with `psql`
+and executing `PAUSE;`.
+
+Always have the query below ready in case if something long running
+appear to stop it, because it might hang everything for an indefinite
+period.
+
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+WHERE now() - xact_start > '3 seconds';
+
 Then promote the slave (`host2`) as a master and remove the pause from
 `pgbouncer`.
 
     /etc/init.d/pgbouncer continue
+
+The same as with `PAUSE;` you can run `RESUME;` via console instead of
+the command above if it is not supported by the package.
 
 Now clients queries are redirected to the new master (`host2`).
 
