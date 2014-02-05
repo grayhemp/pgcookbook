@@ -126,3 +126,17 @@ test -z $STAT_SINCE && STAT_SINCE=$(date -I)
 test -z $STAT_TILL && STAT_TILL=$(date -I --date='+1 day')
 STAT_N=10
 STAT_ORDER=0
+
+TERMINATE_DELAY=5
+TERMINATE_LOCK_FILE='/tmp/terminate_activity.lock'
+TERMINATE_STOP_FILE='/tmp/terminate_activity.stop'
+TERMINATE_CONDITIONS=$(cat <<EOF
+(
+    usename IN ('user1', 'user2') AND
+    now() - xact_start > '10 second'::interval
+) OR (
+    usename NOT IN ('postgres') AND
+    now() - xact_start > '180 second'::interval
+)
+EOF
+)
