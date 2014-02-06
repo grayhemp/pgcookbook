@@ -225,11 +225,6 @@ settings for modern systems looks like it is shown below. Add them to
     echo noop > /sys/block/sda/queue/scheduler
     echo 16384 > /sys/block/sda/queue/read_ahead_kb
 
-Do not forget about open files limit. For modern servers a good value
-is 65535.
-
-    ulimit -n 65535
-
 Install all the required locales.
 
 Adjust `postgresql.conf`, `pg_hba.conf` and connection pooler
