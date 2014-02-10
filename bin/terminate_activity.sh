@@ -9,6 +9,8 @@
 # TERMINATE_LOCK_FILE. If TERMINATE_STOP_FILE exists it does not
 # perform any operations.
 #
+# Copyright (c) 2014 Sergey Konoplev
+#
 # Sergey Konoplev <gray.ru@gmail.com>
 
 source $(dirname $0)/config.sh

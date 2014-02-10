@@ -10,6 +10,8 @@
 # running with the same TUNNEL_LOCK_FILE. In case of network failures
 # it attempts to re-establish connection after TUNNEL_RETRY_DELAY.
 #
+# Copyright (c) 2013 Sergey Konoplev
+#
 # Sergey Konoplev <gray.ru@gmail.com>
 
 source $(dirname $0)/config.sh
