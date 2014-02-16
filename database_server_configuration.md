@@ -207,6 +207,10 @@ can start the database manually with this option.
 
     numactl --interleave=all /etc/init.d/postgresql start
 
+To check if it works run `cat /proc/PID/numa_maps` where `PID` is a
+postgres process. You should see something like `interleave:0-1` in
+every line.
+
 Now adjust your `/etc/fstab`. 
 
 Set `noatime,nobarrier` to gain better performance for data
