@@ -29,5 +29,5 @@ source $(dirname $0)/utils.sh
         sleep $TERMINATE_DELAY
     done
 
-    test -f $TERMINATE_STOP_FILE && die "Stop file still exists."
+    test -f $TERMINATE_STOP_FILE && die "Stop file exists, remove it first."
 ) 210>$TERMINATE_LOCK_FILE
