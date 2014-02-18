@@ -128,7 +128,7 @@ STAT_N=10
 STAT_ORDER=0
 
 TERMINATE_DELAY=5
-TERMINATE_LOCK_FILE='/tmp/terminate_activity.lock'
+TERMINATE_PID_FILE='/tmp/terminate_activity.pid'
 TERMINATE_STOP_FILE='/tmp/terminate_activity.stop'
 TERMINATE_CONDITIONS=$(cat <<EOF
 (

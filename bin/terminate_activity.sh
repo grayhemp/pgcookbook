@@ -6,7 +6,7 @@
 # seconds those checks and terminates sessions that comply to
 # TERMINATE_CONDITIONS. The script was made for running as a cron job
 # and exits normally if another instance is running with the same
-# TERMINATE_LOCK_FILE. If TERMINATE_STOP_FILE exists it does not
+# TERMINATE_PID_FILE. If TERMINATE_STOP_FILE exists it does not
 # perform any operations.
 #
 # Copyright (c) 2014 Sergey Konoplev
@@ -17,7 +17,10 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 (
-    flock -xn 210 || exit 0
+    flock -xn 543 || exit 0
+    trap "rm -f $TERMINATE_PID_FILE" EXIT
+    echo $BASHPID >$TERMINATE_PID_FILE
+
     while [ ! -f $TERMINATE_STOP_FILE ]; do
         $PSQL -XAtx -F ': ' -c \
             "SELECT \
@@ -29,5 +32,5 @@ source $(dirname $0)/utils.sh
         sleep $TERMINATE_DELAY
     done
 
-    test -f $TERMINATE_STOP_FILE && die "Stop file exists, remove it first."
-) 210>$TERMINATE_LOCK_FILE
+    die "Stop file exists, remove it first."
+) 543>>$TERMINATE_PID_FILE
