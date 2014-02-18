@@ -10,11 +10,11 @@
 
 test -z $PORT && PORT=
 test -z $HOST && HOST=
-test -z $UNAME && UNAME=
+test -z $USER && USER=
 
 DSN="$(test ! -z $PORT && echo '-p' $PORT) \
      $(test ! -z $HOST && echo '-h' $HOST) \
-     $(test ! -z $UNAME && echo '-U' $UNAME)"
+     $(test ! -z $USER && echo '-U' $USER)"
 
 PSQL="/usr/bin/psql $DSN"
 PGDUMP="/usr/bin/pg_dump $DSN"
