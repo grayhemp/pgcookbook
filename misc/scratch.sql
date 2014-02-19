@@ -107,3 +107,11 @@ SELECT now(), * FROM pg_stat_statements;
 SELECT pg_stat_statements_reset();
 
 SELECT public._stat_statements_get_report(now()::date, now()::date + 1, 3, 0);
+
+SELECT CASE WHEN version < array[9,2] THEN 'procpid' ELSE 'pid' END
+FROM (
+    SELECT string_to_array(
+        regexp_replace(
+            version(), E'.*PostgreSQL (\\d+\\.\\d+).*', E'\\1'),
+        '.')::integer[] AS version
+) AS s;
