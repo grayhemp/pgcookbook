@@ -19,7 +19,7 @@ source $(dirname $0)/utils.sh
 (
     flock -xn 543 || exit 0
     trap "rm -f $TERMINATE_PID_FILE" EXIT
-    echo $BASHPID >$TERMINATE_PID_FILE
+    echo $(cut -d ' ' -f 4 /proc/self/stat) >$TERMINATE_PID_FILE
 
     while [ ! -f $TERMINATE_STOP_FILE ]; do
         $PSQL -XAtx -F ': ' -c \
