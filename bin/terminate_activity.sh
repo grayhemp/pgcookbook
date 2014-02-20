@@ -45,7 +45,7 @@ EOF
 )
 
     while [ ! -f $TERMINATE_STOP_FILE ]; do
-        $PSQL -XAtx -F ': ' -c "$sql" 2>&1
+        $PSQL -XAtx -F ': ' -c "$sql"
         sleep $TERMINATE_DELAY
     done
 
