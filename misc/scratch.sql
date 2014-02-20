@@ -115,3 +115,14 @@ FROM (
             version(), E'.*PostgreSQL (\\d+\\.\\d+).*', E'\\1'),
         '.')::integer[] AS version
 ) AS s;
+
+/*
+
+(
+    flock -xn 543 || exit 0
+    trap "rm -f $TERMINATE_PID_FILE" EXIT
+    echo $(cut -d ' ' -f 4 /proc/self/stat) >$TERMINATE_PID_FILE
+    ...
+)
+
+*/
