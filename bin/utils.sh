@@ -16,7 +16,7 @@ function info() {
 }
 
 function progress() {
-    tty -s && echo -ne "\r$(date) PROGRESS $(basename $0): $1"
+    echo -ne "\r$(date) PROGRESS $(basename $0): $1"
 }
 
 function readall() {

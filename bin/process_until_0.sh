@@ -25,5 +25,3 @@ while [ $processed -gt 0 ]; do
 
     progress "Processed $total_processed rows."
 done
-
-info "Processed $total_processed rows."
