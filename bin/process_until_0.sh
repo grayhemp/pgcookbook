@@ -20,8 +20,10 @@ while [ $processed -gt 0 ]; do
     result=$($PSQL -X -c "$sql" $PROCESS_DBNAME 2>&1) || \
         die "Can not process: $result."
 
-    processed=$(echo $result | cut -d ' ' -f 2)
+    processed=$(echo $result | cut -d ' ' -f 2,3 | sed 's/^.* //')
     (( total_processed+=processed ))
 
     progress "Processed $total_processed rows."
 done
+
+echo
