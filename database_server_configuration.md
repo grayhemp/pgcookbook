@@ -126,6 +126,26 @@ PostgreSQL.
 
     kernel.sched_autogroup_enabled = 0
 
+For NUMA hardware users on Linux turn off the NUMA local pages reclaim
+as it leads to wrong caching strategy for databases.
+
+    vm.zone_reclaim_mode = 0
+
+Again on NUMA systems it is recommended to set memory interleaving
+mode for better performance. The following should show the only node
+if this mode is on.
+
+    numactl --hardware
+
+Usually it can be set in BIOS however if it is not set this way you
+can start the database manually with this option.
+
+    numactl --interleave=all /etc/init.d/postgresql start
+
+To check if it works run `cat /proc/PID/numa_maps` where `PID` is a
+postgres process. You should see something like `interleave:0-1` in
+every line.
+
 Setup `hugepages` to be used by PostgreSQL on Linux. On 9.3 you can
 not use this feature because of a new memory management that do not
 support it. However, you can use [this patch][2] to overcome this
@@ -190,26 +210,6 @@ this are below. Add them to `/etc/rc.local`.
 
     echo always > /sys/kernel/mm/transparent_hugepage/enabled
     echo madvise > /sys/kernel/mm/transparent_hugepage/defrag
-
-For NUMA hardware users on Linux turn off the NUMA local pages reclaim
-as it leads to wrong caching strategy for databases.
-
-    vm.zone_reclaim_mode = 0
-
-Again on NUMA systems it is recommended to set memory interleaving
-mode for better performance. The following should show the only node
-if this mode is on.
-
-    numactl --hardware
-
-Usually it can be set in BIOS however if it is not set this way you
-can start the database manually with this option.
-
-    numactl --interleave=all /etc/init.d/postgresql start
-
-To check if it works run `cat /proc/PID/numa_maps` where `PID` is a
-postgres process. You should see something like `interleave:0-1` in
-every line.
 
 Now adjust your `/etc/fstab`. 
 
