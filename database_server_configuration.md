@@ -2,7 +2,7 @@
 
 ## Database Server Configuration
 
-This text describes a checklist you need to follow when configuring a
+This text describes a check list you need to follow when configuring a
 new database server.
 
 Check if the server is available by SSH and that necessary permissions
@@ -23,10 +23,9 @@ not, then install the packages and initialize a cluster. Also check
 and install all the needed satellite software, like replication
 systems and connection poolers.
 
-Now update `sysctl.conf`.
-
-To not reboot the server, these settings can be set like it is shown
-below. You'll need `sudo` to do this.
+A lot of configuration parameters we are going set do will be in
+`sysctl.conf`. To not reboot the server, these settings can be set
+like it is shown below. You'll need `sudo` to do this.
 
     sysctl -w some.parameter=some_value
 
@@ -35,14 +34,13 @@ one by one.
 
     sysctl -p /etc/sysctl.conf
 
-If you are on `>=9.3` you not longer need the next step.
+If you are on `>=9.3` you not longer need this step, otherwise set the
+`SHMMAX` and `SHMALL` kernel settings accordingly to the shared memory
+amount assumed to be used.
 
-Set the `SHMMAX` and `SHMALL` kernel settings accordingly to the
-shared memory amount assumed to be used.
-
-Let us assume that we want to set shared buffers to 25% of RAM. Note
-that shared buffers should be set slightly less than
-`SHMMAX/SHMALL`. So let us set `SHMMAX/SHMALL` to 30% of RAM.
+Let us assume that we want to set PostgreSQL shared buffers to 25% of
+RAM. Note that `SHMMAX/SHMALL` should be slightly larger then shared
+buffers. So let us set `SHMMAX/SHMALL` to 30% of RAM.
 
 Calculate them like this. If you use FreeBSD use `sysctl -n
 hw.availpages` instead of `getconf _PHYS_PAGES`.
@@ -50,10 +48,16 @@ hw.availpages` instead of `getconf _PHYS_PAGES`.
     _SHMALL=$(expr $(getconf _PHYS_PAGES) \* 30 / 100)
     _SHMMAX=$(expr $(getconf PAGE_SIZE) \* $_SHMALL)
 
+If you have a dedicated PostgreSQL server or no software needs
+`SHMMAX/SHMALL` to be shorten, it is safe to just set it to 100% of
+RAM.
+
 For FreeBSD use `kern.ipc.*` instead of `kernel.*`.
 
     kernel.shmall = 179085
     kernel.shmmax = 733532160
+
+Note, that if you 
 
 On FreeBSD add `kern.ipc.semmap` to these settings too.
 
@@ -61,18 +65,23 @@ On FreeBSD add `kern.ipc.semmap` to these settings too.
 
 On FreeBSD you will also need to update `/boot/loader.conf` with
 `SEMMNS` and `SEMMNI` settings, see PostgreSQL documentation for more
-information about them.
+information about them. It requires reboot to be applied.
 
     kern.ipc.semmns=32000
     kern.ipc.semmni=128
 
-It requires you to reboot.
+Also remember about setting enough memory locking limits. It must not
+be less than shared memory amount plus required memory for
+connections. Let us set it to 64GB in `/etc/security/limits.conf`.
+
+    postgres        soft    memlock          68719476736
+    postgres        hard    memlock          68719476736
 
 Turn off swapping if you need it. Note that it is not recommended to
 do for low RAM servers mostly, if they are not dedicated for
-PostgreSQL as swapping may free some memory by moving some
-initialization data to swap or it might provide hints about a lack of
-memory.
+PostgreSQL, because swapping might free some memory by moving some
+initialization data to swap, or it might provide hints about a lack of
+memory before server is out of memory.
 
     vm.swappiness = 0
 
@@ -95,7 +104,14 @@ And for FreeBSD.
     kern.maxfiles=65535
     kern.maxfilesperproc=65535
 
-`pdflush` tuning to prevent lag spikes for old Linux kernels.
+And increase maximum number of open files on the system for `postgres`
+in `/etc/security/limits.conf`.
+
+    postgres        soft    nofile           65535
+    postgres        hard    nofile           65535
+
+`pdflush` tuning to prevent lag spikes for old Linux kernels (consult
+with your kernel docs).
 
     vm.dirty_ratio = 10
     vm.dirty_background_ratio = 1
@@ -107,11 +123,11 @@ accordingly if the cache size is known. Otherwise 8MB and 64MB. Look
 through `dmesg` for `scsi` (hardware RAID) or `md` (software RAID) to
 determine what controller is installed.
 
-    vm.dirty_background_bytes = 67108864
-    vm.dirty_bytes = 536870912
+    vm.dirty_background_bytes = 8388608
+    vm.dirty_bytes = 67108864
 
 On Linux with many processes (eg. client connections) increase this
-setting to prevent the scheduler breakdown.
+setting to prevent the scheduler's breakdown.
 
 For kernel versions `<3.11`.
 
@@ -137,8 +153,8 @@ if this mode is on.
 
     numactl --hardware
 
-Usually it can be set in BIOS however if it is not set this way you
-can start the database manually with this option.
+Usually it can be set in BIOS however, if it does not work, you can
+start the database manually with this mode.
 
     numactl --interleave=all /etc/init.d/postgresql start
 
@@ -176,23 +192,17 @@ depending on Linux distributive).
     LD_PRELOAD='/usr/local/lib/hugetlb.so'
     export LD_PRELOAD
 
-On modern systems you can setup `libhugetlbfs0` package for this
-purpose. Install it instead of building `hugetlb` and add
-`libhugetlbfs0.so` to the environment instead of `hugetlb.so` along
-with setting huge pages to be used with shared memory.
+On modern Linux versions you can install `libhugetlbfs` package for
+this purpose. Note it might be named as `libhugetlbfs0` or a similar
+way, depending on a distribution. Install it instead of building
+`hugetlb` and add `libhugetlbfs.so` to the environment instead of
+`hugetlb.so` along with setting huge pages to be used with shared
+memory.
 
     HUGETLB_SHM=yes
     LD_PRELOAD='/usr/lib/libhugetlbfs.so'
     export HUGETLB_SHM
     export LD_PRELOAD
-
-You also need to remember about setting enough memory locking
-limits. It must not be less than shared memory amount plus required
-memory for connections. Let us set it to 64GB in
-`/etc/security/limits.conf`.
-
-    postgres        soft    memlock          68719476736
-    postgres        hard    memlock          68719476736
 
 To check if it is used by postgres execute the following command.
 
@@ -200,7 +210,7 @@ To check if it is used by postgres execute the following command.
 
 Where `PID` is a process ID of any running postgres process.
 
-And this one to check if it used at all.
+And this one is to check if it used at all.
 
     cat /proc/meminfo | grep -i huge
 
@@ -211,23 +221,22 @@ this are below. Add them to `/etc/rc.local`.
     echo always > /sys/kernel/mm/transparent_hugepage/enabled
     echo madvise > /sys/kernel/mm/transparent_hugepage/defrag
 
-Now adjust your `/etc/fstab`. 
-
-Set `noatime,nobarrier` to gain better performance for data
-partitions. Due to the known XFS allocation issue in some recent Linux
-kernels that leads to significant database bloats it is recommended to
-set `allocsize=1m` if you use XFS of course.
-
-    /data xfs noatime,nobarrier,allocsize=1m
-
-Remount affected mount points or reboot.
-
-On Linux add the appropriate `blockdev` settings. Usually good
-settings for modern systems looks like it is shown below. Add them to
-`rc.local`.
+On Linux add the appropriate `blockdev` settings for the data
+partition. Usually good settings for modern systems looks like it is
+shown below. Add them to `rc.local`.
 
     echo noop > /sys/block/sda/queue/scheduler
     echo 16384 > /sys/block/sda/queue/read_ahead_kb
+
+Adjust your `/etc/fstab`. Set `noatime,nobarrier` to gain better
+performance for data partitions. Due to the known XFS allocation issue
+in some recent Linux kernels that leads to significant database bloats
+it is recommended to set `allocsize=1m` if you use XFS of course.
+
+    /data xfs defaults,noatime,nobarrier,allocsize=1m
+
+You will need to remount affected mount points or to reboot to make it
+work.
 
 Install all the required locales.
 
