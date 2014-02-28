@@ -3,13 +3,12 @@
 # stat_statements.sh - query statistics management script.
 #
 # Requires pg_stat_statements to be installed. Connects to STAT_DBNAME
-# and creats its environment if needed. When STAT_SNAPSHOT is not true
-# it prints a top STAT_N queries statistics report for the period
+# and creates its environment if needed. When STAT_SNAPSHOT is not
+# true it prints a top STAT_N queries statistics report for the period
 # specified with STAT_SINCE and STAT_TILL. If STAT_ORDER is 0 then it
-# will print top most time consuming queries, if 1 then most often
-# called. If STAT_SNAPSHOT is true then it creates a snapshot of
-# current statements statistics and resets it to begin collecting
-# another one.
+# prints top most time consuming queries, if 1 then most often called
+# ones. If STAT_SNAPSHOT is true then it creates a snapshot of current
+# statements statistics and resets it to begin collecting another one.
 #
 # Copyright (c) 2013 Sergey Konoplev
 #
