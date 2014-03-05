@@ -10,7 +10,7 @@ according to them. That is very useful.
 
 There also is a nuance. For each query it increments metrics, like
 calls count, total time, etc, since the extension was installed or
-pg_stat_statements_reset() was called or pg_stat_statements.save is
+`pg_stat_statements_reset()` was called or pg_stat_statements.save is
 set to true and the server was restarted. It means we can not get a
 statistics, say, for the yesterday or for an hour after 6 PM. That
 issue makes it not very convenient, because it is always important to
