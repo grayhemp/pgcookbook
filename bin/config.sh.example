@@ -120,12 +120,14 @@ function ARCHIVE_COMMAND_AFTER_DROP() {
     $PSQL -h host2 $1 -c "DROP TABLE $2"
 }
 
-test -z $STAT_SNAPSHOT && STAT_SNAPSHOT=false
 STAT_DBNAME='dbname1'
+test -z $STAT_REPLICA_DSN && STAT_REPLICA_DSN=
+test -z $STAT_SNAPSHOT && STAT_SNAPSHOT=false
 test -z $STAT_SINCE && STAT_SINCE=$(date -I)
 test -z $STAT_TILL && STAT_TILL=$(date -I --date='+1 day')
-STAT_N=10
-STAT_ORDER=0
+test -z $STAT_N && STAT_N=10
+test -z $STAT_ORDER && STAT_ORDER=0
+STAT_KEEP_SNAPSHOTS='7 days'
 
 TERMINATE_CONDITIONS=$(cat <<EOF
 (

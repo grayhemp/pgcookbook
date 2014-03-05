@@ -6,48 +6,95 @@ DROP FUNCTION public._stat_statements_get_report(
     timestamp with time zone, timestamp with time zone, integer, integer);
 
 DO $do$
+DECLARE name text;
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_tables
-        WHERE tablename = '_stat_statements' AND schemaname = 'public'
-    ) THEN
-        CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+    CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
-        CREATE TABLE public._stat_statements AS
-        SELECT NULL::timestamp with time zone AS created, *
+    IF 'host=host3' <> '' THEN
+        CREATE EXTENSION IF NOT EXISTS dblink;
+    END IF;
+
+    IF
+        (
+            SELECT pg_catalog.obj_description(c.oid, 'pg_class')
+            FROM pg_catalog.pg_class AS c
+            JOIN pg_catalog.pg_namespace AS n ON n.oid = relnamespace
+            WHERE nspname = 'public' AND relname = 'stat_statements'
+        ) IS DISTINCT FROM '1'
+    THEN
+        DROP TABLE IF EXISTS public.stat_statements;
+
+        CREATE TABLE public.stat_statements AS
+        SELECT
+            NULL::text AS replica_dsn,
+            NULL::timestamp with time zone AS created,
+            *
         FROM pg_stat_statements LIMIT 0;
 
-        CREATE INDEX _stat_statements_created
-        ON public._stat_statements (created);
+        COMMENT ON TABLE public.stat_statements IS '1';
 
-        CREATE OR REPLACE FUNCTION public._stat_statements_get_report(
+        CREATE INDEX stat_statements_replica_dns_created_idx
+            ON public.stat_statements (replica_dsn, created);
+        CREATE INDEX stat_statements_created_idx
+            ON public.stat_statements (created);
+    END IF;
+
+    IF
+        (
+            SELECT pg_catalog.obj_description(p.oid, 'pg_proc')
+            FROM pg_catalog.pg_proc AS p
+            LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = pronamespace
+            WHERE nspname = 'public' AND proname = 'stat_statements_get_report'
+        ) IS DISTINCT FROM '1'
+    THEN
+        FOR name IN
+            SELECT p.oid::regprocedure
+            FROM pg_catalog.pg_proc AS p
+            LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = pronamespace
+            WHERE nspname = 'public' AND proname = 'stat_statements_get_report'
+        LOOP
+            EXECUTE 'DROP FUNCTION ' || name;
+        END LOOP;
+
+        CREATE OR REPLACE FUNCTION public.stat_statements_get_report(
+            i_replica_dsn text,
             i_since timestamp with time zone, i_till timestamp with time zone,
-            i_n integer, i_order integer, -- 0 - by time, 1 - by calls
+            i_n integer, i_order integer, -- 0 - time, 1 - calls, 2 - IO
             OUT o_report text)
         RETURNS text LANGUAGE 'plpgsql' AS $function$
         BEGIN
             WITH q1 AS (
                 SELECT
                     sum(total_time) AS time,
+                    sum(blk_read_time + blk_write_time) AS io_time,
                     sum(total_time) / sum(calls) AS time_avg,
+                    sum(blk_read_time + blk_write_time) /
+                        sum(calls) AS io_time_avg,
                     sum(rows) AS rows,
                     sum(rows) / sum(calls) AS rows_avg,
                     sum(calls) AS calls,
                     string_agg(usename, ' ') AS users,
                     string_agg(datname, ' ') AS dbs,
                     query AS raw_query
-                FROM public._stat_statements
-                LEFT JOIN pg_user ON userid = usesysid
-                LEFT JOIN pg_database ON dbid = pg_database.oid
-                WHERE created > i_since AND created <= i_till
+                FROM public.stat_statements
+                LEFT JOIN pg_catalog.pg_user ON userid = usesysid
+                LEFT JOIN pg_catalog.pg_database ON dbid = pg_database.oid
+                WHERE
+                    replica_dsn = i_replica_dsn AND
+                    created > i_since AND created <= i_till
                 GROUP BY query
                 ORDER BY
-                    (1 - i_order) * sum(total_time) DESC,
-                    i_order * sum(calls) DESC
+                    CASE
+                        WHEN i_order = 0 THEN sum(total_time)
+                        WHEN i_order = 1 THEN sum(calls)
+                        ELSE sum(blk_read_time + blk_write_time)
+                    END DESC
             ), q2 AS (
                 SELECT
-                    time, time_avg, rows, rows_avg, calls, users, dbs,
+                    time, io_time, time_avg, io_time_avg, rows, rows_avg, calls,
+                    users, dbs,
                     100 * time / sum(time) OVER () AS time_percent,
+                    100 * io_time / sum(time) OVER () AS io_time_percent,
                     100 * calls / sum(calls) OVER () AS calls_percent,
                     CASE
                         WHEN row_number() OVER () > i_n THEN 'other'
@@ -60,8 +107,11 @@ BEGIN
                 SELECT
                     row_number,
                     sum(time)::numeric(18,3) AS time,
+                    sum(io_time)::numeric(18,3) AS io_time,
                     sum(time_percent)::numeric(5,2) AS time_percent,
-                    (sum(time) / sum(calls))::numeric(18,3) AS time_avg,
+                    sum(io_time_percent)::numeric(5,2) AS io_time_percent,
+                    sum(time_avg)::numeric(18,3) AS time_avg,
+                    sum(io_time_avg)::numeric(18,3) AS io_time_avg,
                     sum(calls) AS calls,
                     sum(calls_percent)::numeric(5,2) AS calls_percent,
                     sum(rows) AS rows,
@@ -87,26 +137,72 @@ BEGIN
             )
             SELECT INTO o_report string_agg(
                 format(
-                    E'pos: %s\n' ||
-                    E'time: %s%%, %s ms, %s ms avg\n' ||
-                    E'calls: %s%%, %s\n' ||
-                    E'rows: %s, %s avg\n' ||
-                    E'users: %s\ndbs: %s\n\n%s',
-                    row_number, time_percent, time, time_avg, calls_percent,
-                    calls, rows, rows_avg, users, dbs, query),
+                    E'Position: %s\n' ||
+                    E'Time: %s%%, %s ms, %s ms avg\n' ||
+                    E'IO time: %s%%, %s ms, %s ms avg\n' ||
+                    E'Calls: %s%%, %s\n' ||
+                    E'Rows: %s, %s avg\n' ||
+                    E'Users: %s\n'||
+                    E'Databases: %s\n\n%s',
+                    row_number, time_percent, time, time_avg, io_time_percent,
+                    io_time, io_time_avg, calls_percent, calls, rows, rows_avg,
+                    users, dbs, query),
                 E'\n\n')
             FROM q3;
+
             RETURN;
         END $function$;
+
+        FOR name IN
+            SELECT p.oid::regprocedure
+            FROM pg_catalog.pg_proc AS p
+            LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = pronamespace
+            WHERE nspname = 'public' AND proname = 'stat_statements_get_report'
+        LOOP
+            EXECUTE 'COMMENT ON FUNCTION ' || name || ' IS ''1''';
+        END LOOP;
     END IF;
 END $do$;
 
-INSERT INTO public._stat_statements
-SELECT now(), * FROM pg_stat_statements;
+INSERT INTO public.stat_statements
+SELECT 'host=host3', now(), * FROM pg_stat_statements;
 
 SELECT pg_stat_statements_reset();
 
-SELECT public._stat_statements_get_report(now()::date, now()::date + 1, 3, 0);
+INSERT INTO public.stat_statements
+SELECT 'host=host4', now(), * FROM dblink(
+    'host=host4 dbname=dbname1',
+    'SELECT * FROM pg_stat_statements'
+) AS s(
+    userid oid,
+    dbid oid,
+    query text,
+    calls bigint,
+    total_time double precision,
+    rows bigint,
+    shared_blks_hit bigint,
+    shared_blks_read bigint,
+    shared_blks_dirtied bigint,
+    shared_blks_written bigint,
+    local_blks_hit bigint,
+    local_blks_read bigint,
+    local_blks_dirtied bigint,
+    local_blks_written bigint,
+    temp_blks_read bigint,
+    temp_blks_written bigint,
+    blk_read_time double precision,
+    blk_write_time double precision
+);
+
+SELECT * FROM dblink(
+    'host=host4 dbname=dbname1',
+    'SELECT pg_stat_statements_reset()'
+) AS s(t text);
+
+SELECT public.stat_statements_get_report(
+    'host=host4', now()::date, now()::date + 1, 2, 2);
+
+DELETE FROM public.stat_statements WHERE created < now() - '7 days'::interval;
 
 -- terminate_activity.sh
 
@@ -128,6 +224,8 @@ FROM (
 )
 
 */
+
+SELECT pg_catalog.obj_description('public.a'::regclass, 'pg_class');
 
 -- process_until_0.sh
 
@@ -156,3 +254,5 @@ WHERE i IN (SELECT i FROM test_process_until_0 LIMIT 10);
 EOF
 
 */
+
+--
