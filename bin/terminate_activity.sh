@@ -35,4 +35,6 @@ WHERE $TERMINATE_CONDITIONS
 EOF
 )
 
+info "Activity was terminated\n"
+
 $PSQL -XAtx -F ': ' -c "$sql" | sed '${/^$/d;}'
