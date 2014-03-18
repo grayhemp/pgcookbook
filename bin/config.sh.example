@@ -141,3 +141,9 @@ EOF
 )
 
 test -z $PROCESS_DBNAME && PROCESS_DBNAME=
+
+LAG_DBNAME='dbname1'
+test -z $LAG_DSN && LAG_DSN=
+LAG_RECEIVE=$((32 * 1024 * 1024))
+LAG_REPLAY=$((32 * 1024 * 1024))
+LAG_REPLAY_AGE='5 minutes'

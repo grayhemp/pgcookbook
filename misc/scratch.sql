@@ -255,4 +255,48 @@ EOF
 
 */
 
+-- replica_lag.sh
+
+SELECT txid_current();
+WITH info AS (
+    SELECT
+        in_recovery,
+        pg_xlog_location_diff(
+            pg_current_xlog_location(),
+            receive_location) AS receive_lag,
+        pg_xlog_location_diff(
+            pg_current_xlog_location(),
+            replay_location) AS replay_lag,
+        now() - replay_timestamp AS replay_age
+    FROM dblink(
+        'host=host4',
+        $q$ SELECT
+            pg_is_in_recovery(),
+            pg_last_xlog_receive_location(),
+            pg_last_xlog_replay_location(),
+            pg_last_xact_replay_timestamp() $q$
+    ) AS s(
+        in_recovery boolean, receive_location text, replay_location text,
+        replay_timestamp timestamp with time zone
+    )
+), filter AS (
+    SELECT * FROM info
+    WHERE
+        NOT in_recovery OR
+        receive_lag IS NULL OR receive_lag > 32 * 1024 * 1024 OR
+        replay_lag IS NULL OR replay_lag > 32 * 1024 * 1024 OR
+        replay_age IS NULL OR replay_age > '5 minutes'::interval
+)
+SELECT
+    CASE WHEN in_recovery THEN
+        format(
+            E'Receive lag: %s\n' ||
+            E'Replay lag: %s\n' ||
+            E'Replay age: %s',
+            coalesce(pg_size_pretty(receive_lag), 'N/A'),
+            coalesce(pg_size_pretty(replay_lag), 'N/A'),
+            coalesce(replay_age::text, 'N/A'))
+    ELSE 'Not in recovery' END
+FROM filter;
+
 --
