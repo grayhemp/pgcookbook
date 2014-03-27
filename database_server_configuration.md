@@ -35,12 +35,26 @@ one by one.
     sysctl -p /etc/sysctl.conf
 
 If you are on `>=9.3` you not longer need this step, otherwise set the
-`SHMMAX` and `SHMALL` kernel settings accordingly to the shared memory
-amount assumed to be used.
+`SHMMAX` and `SHMALL` kernel settings accordingly to the shared
+buffers amount assumed to be used.
 
-Let us assume that we want to set PostgreSQL shared buffers to 25% of
-RAM. Note that `SHMMAX/SHMALL` should be slightly larger then shared
-buffers. So let us set `SHMMAX/SHMALL` to 30% of RAM.
+Several of notes on shared buffers. Shared buffers must (currently)
+compete with OS inode caches. If shared buffers are too high, much of
+the cached data is already cached by the operating system, and you end
+up with wasted RAM. However in some cases larger shared buffers might
+be preferable to OS cache, mostly if you have a huge amount of active
+data, because PostgreSQL often works with memory a more effective
+way. Checkpoints must commit dirty shared buffers to disk. The larger
+it is, the more slowdown risk you have when checkpoints come. Since
+shared_buffers is the amount of memory that could potentially remain
+uncommitted to data files, the larger this is, the longer crash
+recovery can take. The checkpoints and bgwriter settings control how
+this is distributed and maintained, so, it is often worth configure
+them more aggressively if you set large shared buffers.
+
+Now, let us assume that we want to set PostgreSQL shared buffers to
+25% of RAM. Note that `SHMMAX/SHMALL` should be slightly larger then
+shared buffers. So let us set `SHMMAX/SHMALL` to 30% of RAM.
 
 Calculate them like this. If you use FreeBSD use `sysctl -n
 hw.availpages` instead of `getconf _PHYS_PAGES`.
