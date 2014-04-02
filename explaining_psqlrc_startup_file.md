@@ -2,42 +2,47 @@
 
 ## Explaining .psqlrc Startup File
 
-This description is not a general explanation of the functionality. It
-is just a configuration that seems me to be useful. It is subjective.
+The file `.psqlrc` serves as a user's start-up file for the `psql`
+interactive terminal. There also is a system-wide `psqlrc` file. This
+description is neither a general explanation of its functionality nor
+a set of rules. It is just one of the configuration examples, supplied
+with notes, that seems to be useful and might serve as a starting
+point.
 
-The size of the `psql` history is 500 entries by default. It is too
-small when experimenting with query plans or building test cases. So
-it worth to increase it, for example to 5000.
+The size of the `psql` history is 500 entries by default. Often it is
+too few, mostly if one is actively working with query plans, building
+test cases, etc. It worth to increase it, eg. to 5000.
 
     \set HISTSIZE 5000
 
-Just not to waste resources and prevent users from occasional missing
-`LIMIT` fetch count is set to 1000.
+To prevent users from accidentally missing `LIMIT` when querying a
+huge data set the fetch count to 1000.
 
     \set FETCH_COUNT 1000
 
-Get rid of duplicate sequences in the history.
+Avoid duplication in the history.
 
     \set HISTCONTROL ignoredups
 
-Display prompt as `host:post user@database=#`. The `=` is changing to
-different symbols depending on context, if you are writing a comment
-it is `*`, inside of a string it is `'` or `"`, in a single line mode
-it is `^`, etc. `#` is displayed with superusers, `>` with common
-user.
+Display prompt as `host:post user@database=# `. The `=` symbol changes
+to other symbols depending on a context. If you are writing a comment
+it is `*`, inside of a string `'` or `"`, in a single line mode `^`,
+etc. The `#` symbol is displayed for superusers, `>` for common users.
 
     \set PROMPT1 '%M:%> %n@%/%R%# '
     \set PROMPT2 :PROMPT1
     \set PROMPT3 '>> '
 
-Default pagers are often spoil expected output so it is turned off.
+Pagers often spoil output so it is probably worth to turn the
+following off. Surely it depends on everyone's preferences.
 
     \pset pager off
 
-To know the execution time of such directives like `ALTER` or `CREATE
-TRIGGER` is very useful. However by default it is does not shown. So
-turn it on.
+Often it is useful to know execution time of such commands like
+`ALTER` or `CREATE INDEX`, but it is not shown by default. So turn it
+on like this.
 
     \timing
 
-This [.psqlrc](.psqlrc) file can be found in the repository.
+And here is the [.psqlrc](.psqlrc) file containing all described above
+itself.
