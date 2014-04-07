@@ -44,5 +44,5 @@ on like this.
 
     \timing
 
-And here is the [.psqlrc](.psqlrc) file containing all described above
-itself.
+You can find the [.psqlrc](.psqlrc) file containing all the described
+above itself in [PgCookbook](README.md).
