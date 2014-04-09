@@ -2,7 +2,15 @@
 
 # config.sh.example - example configuration.
 #
-# Rename it to config.sh and adjust parameters for your needs.
+# Rename it to config.sh and adjust the settings for your needs.
+#
+# Settings can be written in the form
+#
+#     test -z $SETTING && SETTING='value'
+#
+# that means you can also set them from the command line, eg.
+#
+#     SETTING='another value' bin/some_script.sh
 #
 # Copyright (c) 2013 Sergey Konoplev
 #
