@@ -12,7 +12,7 @@
 #
 #     SETTING='another value' bin/some_script.sh
 #
-# Copyright (c) 2013 Sergey Konoplev
+# Copyright (c) 2013-2014 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
