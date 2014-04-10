@@ -16,12 +16,12 @@
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
-test -z $PORT && PORT=
 test -z $HOST && HOST=
+test -z $PORT && PORT=
 test -z $USER && USER=
 
-DSN="$(test ! -z $PORT && echo '-p' $PORT) \
-     $(test ! -z $HOST && echo '-h' $HOST) \
+DSN="$(test ! -z $HOST && echo '-h' $HOST) \
+     $(test ! -z $PORT && echo '-p' $PORT) \
      $(test ! -z $USER && echo '-U' $USER)"
 
 PSQL="/usr/bin/psql $DSN"
@@ -31,12 +31,13 @@ PGDUMPALL="/usr/bin/pg_dumpall $DSN"
 RSYNC='/usr/bin/rsync -aq'
 SSH='/usr/bin/ssh'
 
-TUNNEL_PORT=2345
-TUNNEL_HOST_PORT=5432
-TUNNEL_HOST='host2'
+test -z $TUNNEL_PORT && TUNNEL_PORT=2345
+test -z $TUNNEL_HOST_PORT && TUNNEL_HOST_PORT=5432
+test -z $TUNNEL_HOST && TUNNEL_HOST='host2'
 TUNNEL_COMP_LEVEL=2
 TUNNEL_RETRY_DELAY=60
-TUNNEL_LOCK_FILE='/tmp/ssh_tunnel.lock'
+test -z $TUNNEL_LOCK_FILE && \
+    TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_HOST.$TUNNEL_HOST_PORT"
 
 DUMPS_DBNAME_LIST='dbname1 dbname2'
 DUMPS_LOCAL_DIR=
