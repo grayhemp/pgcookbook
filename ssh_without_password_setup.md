@@ -2,35 +2,29 @@
 
 ## SSH without Password Setup
 
-Often, when dealing with more than one database server, you need to
-have an easy file system level access configured between them. For
-example to exchange configuration files, make base backups, copy some
-maintenance scripts, etc. SSH configured without password will save
-you a lot of time here.
+Often, when dealing with more than one database server, one needs to
+have an easy shell level access configured between them. For example
+to exchange with configuration files, make base backups, copy some
+maintenance scripts, etc. SSH configured with key based authorization
+(without password) will save a lot of time and efforts here.
 
-Let us see how to set it up. 
+Now, let us see how to set it up from `user1@host1` to `user2@host2`.
 
-Suppose you need to get rid of entering password when logging in via
-SSH from `user1@host1` to `user2@host2`.
+First, generate a public key on `host1` when logged in with
+`user1`. Do not enter any passphrase.
 
-First, create an `.ssh' directory and generate a public key on `host1`
-with `user1`.
-
-    mkdir ~/.ssh/
-    chmod 700 ~/.ssh/
     ssh-keygen -t rsa
-    cat ~/.ssh/id_rsa.pub 
-    ssh-rsa AAA...
-    ...qCXpQ== user1@host1
 
-Append the key to the end of `~/.ssh/authorized_keys` (or
-`~/.ssh/authorized_keys2` if SSH2 is used).
+Then, using `ssh` with `user2@host2`, create an `.ssh` directory,
+change an access mode to 700 on it, and append the generated key to
+the end of `~/.ssh/authorized_keys` (or `~/.ssh/authorized_keys2` if
+SSH2 is used) there. You will need to enter `user2`s password two
+times here.
 
-    cat <<EOF >> ~/.ssh/authorized_keys 
-    > ssh-rsa AAA...
-    ...qCXpQ== user1@host1
+    ssh user2@host2 'mkdir ~/.ssh/ && chmod 700 ~/.ssh/'
+    cat ~/.ssh/id_rsa.pub | ssh user2@host2 'cat >> ~/.ssh/authorized_keys'
 
-Enjoy.
+And finally you can enjoy it without password.
 
-    scp ~/some/file user2@host2:~/
     ssh user2@host2
+    scp ~/some/file user2@host2:~/ 
