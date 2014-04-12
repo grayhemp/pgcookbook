@@ -3,42 +3,49 @@
 ## Statement Statistics Collecting and Reporting
 
 There is an extension named [pg_stat_statements] in PostgreSQL
-distributive. In short, it accumulates statement statistics in a
-system view named `pg_stat_statements`. Since the version 9.2 it
-started analyzing queries' "fingerprints" and normalizing the queries
-according to them. That is very useful.
+distributive. In short, it accumulates statement statistics accessible
+via the system view named `pg_stat_statements`. Since the version 9.2
+it started normalizing queries' according to their "fingerprints" what
+made the extension very useful to query monitoring and performance
+analysis.
 
-There also is a nuance. For each query it increments metrics, like
-calls count, total time, etc, since the extension was installed or
-`pg_stat_statements_reset()` was called or pg_stat_statements.save is
-set to true and the server was restarted. It means we can not get a
-statistics, say, for the yesterday or for an hour after 6 PM. That
-issue makes it not very convenient, because it is always important to
-track the dynamic and trends.
+However, as every generic system, it requires some extra work to be
+done to make it practically convenient. Let us start with how it
+works. For each query it accumulates counts, like calls, total time,
+IO time. It constantly performs this since the extension was
+installed, or the statistics was reset by `pg_stat_statements_reset()`
+call, or `pg_stat_statements.save` was set to `off` and the server was
+restarted. It means that we can not get a statistics, say, for the
+yesterday or for an hour after 6 AM. That issue makes it not always
+convenient for tracking dynamics and trends, that are very important.
 
 However, there is a solution. We could make snapshots of
 `pg_stat_statements` every, say 10 minutes, and collect them in a
-separate table. So we will be able to get the statistics for any
-period with 10 minutes granularity.
+separate table. This way we will be able to get the statistics for any
+period with 10 minutes granularity. [PgCookbook](README.md) has
+[stat_statements.sh](bin/stat_statements.sh) script that automates all
+this functionality. It can even snapshot and save the snapshots from
+replication servers on master via the `dblink` extension, so you could
+easily track dynamics there either.
 
-Furthermore, we have the [stat_statements.sh](bin/stat_statements.sh)
-script that automates all this stuff. From its description.
+Its documentation string.
 
-    # The script connects to STAT_DBNAME, creates its own environment,
-    # pg_stat_statements and dblink extensions. When STAT_SNAPSHOT is not
-    # true it prints a top STAT_N queries statistics report for the period
-    # specified with STAT_SINCE and STAT_TILL. When STAT_ORDER is 0 - it
-    # prints the top most time consuming queries, 1 - the most often
-    # called, 2 - the most IO consuming ones. If STAT_SNAPSHOT is true
-    # then it creates a snapshot of current statements statistics, resets
-    # it to begin collecting another one and clean snapshots that are
-    # older than and period. If STAT_REPLICA_DSN is specified it performs
-    # the operation on this particular streaming replica. Do not put
-    # dbname in the STAT_REPLICA_DSN it will be substituted as
-    # STAT_DBNAME, automatically. Compatible with PostgreSQL >=9.2.
+    The script connects to STAT_DBNAME, creates its own environment,
+    pg_stat_statements and dblink extensions. When STAT_SNAPSHOT is
+    not true it prints a top STAT_N queries statistics report for the
+    period specified with STAT_SINCE and STAT_TILL. When STAT_ORDER is
+    0 - it prints the top most time consuming queries, 1 - the most
+    often called, 2 - the most IO consuming ones. If STAT_SNAPSHOT is
+    true then it creates a snapshot of current statements statistics,
+    resets it to begin collecting another one and clean snapshots that
+    are older than and period. If STAT_REPLICA_DSN is specified it
+    performs the operation on this particular streaming replica. Do
+    not put dbname in the STAT_REPLICA_DSN it will be substituted as
+    STAT_DBNAME, automatically. Compatible with PostgreSQL >=9.2.
 
-Below is its configuration example (see
-[config.sh.example](bin/config.sh.example)).
+The configuration is located in `config.sh` file under the `/bin`
+directory. The script specific settings are explained below. For all
+the settings see [config.sh.example](bin/config.sh.example).
 
     STAT_DBNAME='dbname1'
     test -z $STAT_REPLICA_DSN && STAT_REPLICA_DSN=
@@ -50,26 +57,30 @@ Below is its configuration example (see
     STAT_KEEP_SNAPSHOTS='7 days'
 
 To snapshot statistics every 10 minutes put the following entry to
-`crontab` for your master and for each streaming replica you wish to
-monitor queries on.
+`crontab` on your master server for the master and each streaming
+replica you wish to monitor queries on.
 
     */10 * * * * STAT_SNAPSHOT=true bash stat_statements.sh
-    */10 * * * * STAT_REPLICA_DSN='host=host4' STAT_SNAPSHOT=true \
+    */10 * * * * STAT_REPLICA_DSN='host=host2' STAT_SNAPSHOT=true \
+                     bash stat_statements.sh
+    */10 * * * * STAT_REPLICA_DSN='host=host3' STAT_SNAPSHOT=true \
                      bash stat_statements.sh
 
-After some snapshots you will be able to request slices of the
-statistics. Note the values of `STAT_SINCE`, `STAT_TILL`,
-`STAT_REPLICA_DSN`, `STAT_N` and `STAT_ORDER` above. By default, if
-you just run it like `bash bin/stat_statements.sh`, you will get the
-top 10 queries ordered by total time, longest first, for a period of
-the current day. To customize the result you can set these parameters
-in command line just like it is shown below.
+After some amount of time and snapshots you will be able to request
+aggregated statistics for different periods. Note the values of
+`STAT_SINCE`, `STAT_TILL`, `STAT_REPLICA_DSN`, `STAT_N` and
+`STAT_ORDER` above. By default, if you just run it like `bash
+pgcookbook/bin/stat_statements.sh`, you will get the top 10 queries
+ordered by total time, longest first, for current day. To customize
+the result you can supply these parameters with your values in command
+line, eg. for top 5 most IO consuming queries on `host3` for today,
+like it is shown below.
 
-    STAT_REPLICA_DSN='host=host4' STAT_N=5 STAT_ORDER=2 \
-        bash bin/stat_statements.sh
+    STAT_REPLICA_DSN='host=host3' STAT_N=5 STAT_ORDER=2 \
+        bash pgcookbook/bin/stat_statements.sh
 
     Wed Mar  5 10:19:34 PST 2014  INFO stat_statements.sh:
-    Replica report 'host=host4'
+    Replica report 'host=host3'
 
     Position: 1
     Time: 14.21%, 62970533.029 ms, 425.385 ms avg
@@ -107,5 +118,29 @@ in command line just like it is shown below.
     Databases: dbname1, dbname2, test
 
     other
+
+If you want to receive such reports by email on a daily basis, just
+put its calls to `crontab` along with a `MAILTO` directive, like on
+the example below.
+
+    MAILTO=dba@company.com
+    
+    59 23 * * * STAT_ORDER=0 bash pgcookbook/bin/stat_statements.sh
+    59 23 * * * STAT_ORDER=1 bash pgcookbook/bin/stat_statements.sh
+    59 23 * * * STAT_ORDER=2 bash pgcookbook/bin/stat_statements.sh
+
+    59 23 * * * STAT_REPLICA_DSN='host=host2' STAT_ORDER=0 \
+                    bash pgcookbook/bin/stat_statements.sh
+    59 23 * * * STAT_REPLICA_DSN='host=host2' STAT_ORDER=1 \
+                    bash pgcookbook/bin/stat_statements.sh
+    59 23 * * * STAT_REPLICA_DSN='host=host2' STAT_ORDER=2 \
+                    bash pgcookbook/bin/stat_statements.sh
+
+    59 23 * * * STAT_REPLICA_DSN='host=host3' STAT_ORDER=0 \
+                    bash pgcookbook/bin/stat_statements.sh
+    59 23 * * * STAT_REPLICA_DSN='host=host3' STAT_ORDER=1 \
+                    bash pgcookbook/bin/stat_statements.sh
+    59 23 * * * STAT_REPLICA_DSN='host=host3' STAT_ORDER=2 \
+                    bash pgcookbook/bin/stat_statements.sh
 
 [pg_stat_statements]: http://www.postgresql.org/docs/current/static/index.html
