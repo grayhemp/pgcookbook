@@ -22,7 +22,20 @@ SSH2 is used) there. You will need to enter `user2`s password two
 times here.
 
     ssh user2@host2 'mkdir ~/.ssh/ && chmod 700 ~/.ssh/'
-    cat ~/.ssh/id_rsa.pub | ssh user2@host2 'cat >> ~/.ssh/authorized_keys'
+    cat ~/.ssh/id_rsa.pub | ssh user2@host2 'cat >>~/.ssh/authorized_keys'
+
+If you do not have a password for `user2@host2` than use 2 terminal
+windows and clipboard to copy the content of `~/.ssh/id_rsa.pub` with
+`user1@host1`.
+
+    cat ~/.ssh/id_rsa.pub
+    ssh-rsa AAAAB4NbsC3xf ... user1@host1
+
+And paste it to `~/.ssh/authorized_keys` with `user2@host2`.
+
+    cat <<EOF >>~/.ssh/authorized_keys
+    > ssh-rsa AAAAB4NbsC3xf ... user1@host1
+    > EOF
 
 And finally you can enjoy it without password.
 
