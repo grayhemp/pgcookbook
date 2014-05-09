@@ -15,7 +15,7 @@ and to manage configuration.
 
 If you are migrating a database to the server or setting up a hot
 standby ensure that all the required mount points for tablespaces are
-created. Use `\db+` in `psql` to check tablespaces and their
+created. Use `\db+` in psql to check tablespaces and their
 locations.
 
 Ensure that the required version of PotsgreSQL is installed. If it is

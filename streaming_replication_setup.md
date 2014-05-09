@@ -87,7 +87,7 @@ configuration like shown below in it.
 
 By this we turned standby mode on, specified a connection string to
 point to the primary server, and specified a path to the trigger file
-which presence will be a signal for postgres to finish the recovery
+which presence will be a signal for PostgreSQL to finish the recovery
 and to promote the replica to a master. In case of the ssh-tunneling
 specify the host as `127.0.0.1` and the port as `2345`.
 
