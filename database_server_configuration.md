@@ -239,22 +239,41 @@ On Linux add the appropriate `blockdev` settings for the data
 partition. Usually good settings for modern systems looks like it is
 shown below. Add them to `rc.local`.
 
-    echo noop > /sys/block/sda/queue/scheduler
-    echo 16384 > /sys/block/sda/queue/read_ahead_kb
+    echo noop > /sys/block/sdb/queue/scheduler
+    echo 16384 > /sys/block/sdb/queue/read_ahead_kb
+
 
 Adjust your `/etc/fstab`. Set `noatime,nobarrier` to gain better
 performance for data partitions. Due to the known XFS allocation issue
 in some recent Linux kernels that leads to significant database bloats
 it is recommended to set `allocsize=1m` if you use XFS of course.
 
-    /data xfs defaults,noatime,nobarrier,allocsize=1m
+    /dev/sdb /data xfs defaults,noatime,nobarrier,allocsize=1m 0 2
 
 You will need to remount affected mount points or to reboot to make it
 work.
 
-Install all the required locales.
+    mount -o remount /data
 
-Adjust `postgresql.conf`, `pg_hba.conf` and connection pooler
+XFS currently is a recommended file system for PostgreSQL. To setup
+your partition in XFS `umount` it if it is mounted, and make it with
+`mkfs.xfs`. You might probably want to adjust some file system options
+on this step.
+
+    umount /data
+    mkfs.xfs /dev/sdb
+
+Then adjust `fstab` as it is shown above, and mount the partition.
+
+    mount /data
+
+To check if everything is okay list the mounted partitions.
+
+    mount -l
+
+Do not forget to install all the required locales.
+
+Now adjust `postgresql.conf`, `pg_hba.conf` and connection pooler
 configuration (and probably its users configuration). Restart
 PostgreSQL and the connection pooler.
 
