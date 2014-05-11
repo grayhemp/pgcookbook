@@ -29,8 +29,8 @@ if $RESTORE_DROP; then
              WHERE datname = '$RESTORE_DBNAME'" 2>&1) || \
             die "Can not terminate connections: $error."
 
-        error=$( \
-            $PSQL -XAtq -c "DROP DATABASE $RESTORE_DBNAME" postgres 2>&1) || \
+        error=$($PSQL -XAtq \
+            -c "DROP DATABASE \"$RESTORE_DBNAME\"" postgres 2>&1) || \
             die "Can not drop database: $error."
     fi
 fi
@@ -39,7 +39,7 @@ if contains "$dbname_list" $RESTORE_DBNAME; then
     die "Can not restore to existing database."
 fi
 
-error=$($PSQL -XAtq -c "CREATE DATABASE $RESTORE_DBNAME" postgres 2>&1) || \
+error=$($PSQL -XAtq -c "CREATE DATABASE \"$RESTORE_DBNAME\"" postgres 2>&1) || \
     die "Can not create database: $error."
 
 error=$($PGRESTORE -es -d $RESTORE_DBNAME -F c $RESTORE_FILE 2>&1) || \
