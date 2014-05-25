@@ -257,8 +257,8 @@ work.
 
 XFS currently is a recommended file system for PostgreSQL. To setup
 your partition in XFS `umount` it if it is mounted, and make it with
-`mkfs.xfs`. You might probably want to adjust some file system options
-on this step.
+mkfs.xfs from the xfsprogs package. You might probably want to adjust
+some file system options on this step.
 
     umount /data
     mkfs.xfs /dev/sdb
