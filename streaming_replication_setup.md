@@ -170,7 +170,7 @@ first.
 
     rsync -av --delete -z --progress --compress-level=1 \
         --exclude pg_xlog --exclude *.conf --exclude postgresql.pid \
-        /db/data host2:/db/
+        /db/data/ host2:/db/data
 
 Repeat this for every tablespace of the database. Sometimes it is
 worth to run all the `rsync`'s simultaneously, mostly if you have a
