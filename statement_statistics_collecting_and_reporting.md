@@ -60,11 +60,11 @@ To snapshot statistics every 10 minutes put the following entry to
 `crontab` on your master server for the master and each streaming
 replica you wish to monitor queries on.
 
-    */10 * * * * STAT_SNAPSHOT=true bash stat_statements.sh
+    */10 * * * * STAT_SNAPSHOT=true bash pgcookbook/bin/stat_statements.sh
     */10 * * * * STAT_REPLICA_DSN='host=host2' STAT_SNAPSHOT=true \
-                     bash stat_statements.sh
+                     bash pgcookbook/bin/stat_statements.sh
     */10 * * * * STAT_REPLICA_DSN='host=host3' STAT_SNAPSHOT=true \
-                     bash stat_statements.sh
+                     bash pgcookbook/bin/stat_statements.sh
 
 After some amount of time and snapshots you will be able to request
 aggregated statistics for different periods. Note the values of
