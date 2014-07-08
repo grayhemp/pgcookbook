@@ -105,21 +105,20 @@ ARCHIVE_PARTS_SQL=$(cat <<EOF
     SELECT schemaname, tablename
     FROM pg_tables
     WHERE
-        tablename ~ E'^$ARCHIVE_TYPE1_PARTS_MASK\\\\d{4}\\\\d{2}$' AND
+        tablename ~ E'($ARCHIVE_TYPE1_PARTS_MASK)_\\\\d{4}\\\\d{2}$' AND
         to_timestamp(
-            regexp_replace(tablename, '$ARCHIVE_TYPE1_PARTS_MASK', ''),
+            regexp_replace(tablename, '^.+_', ''),
             'YYYYMM') < date_trunc('month', now()) -
-            '$ARCHIVE_KEEP_TYPE1_PARTS'::interval
+            '$ARCHIVE_TYPE1_PARTS_KEEP'::interval
     UNION
     SELECT schemaname, tablename
     FROM pg_tables
     WHERE
-        tablename ~ E'^$ARCHIVE_TYPE2_PARTS_MASK\\\\d{4}\\\\d{2}$' AND
+        tablename ~ E'($ARCHIVE_TYPE2_PARTS_MASK)_\\\\d{4}\\\\d{2}$' AND
         to_timestamp(
-            regexp_replace(tablename, '$ARCHIVE_TYPE2_PARTS_MASK', ''),
+            regexp_replace(tablename, '^.+_', ''),
             'YYYYMM') < date_trunc('month', now()) -
-            '$ARCHIVE_KEEP_TYPE2_PARTS'::interval
-    ORDER BY 1, 2
+            '$ARCHIVE_TYPE2_PARTS_KEEP'::interval
 EOF
 )
 function ARCHIVE_COMMAND_BEFORE_DROP() {

@@ -299,4 +299,85 @@ SELECT
     ELSE 'Not in recovery' END
 FROM filter;
 
+-- archive_tables.sh
+
+/*
+
+mkdir -p /tmp/storage/parts
+
+*/
+
+\c postgres
+DROP DATABASE IF EXISTS dbname1;
+DROP DATABASE IF EXISTS dbname2;
+--
+CREATE DATABASE dbname1;
+CREATE DATABASE dbname2;
+--
+\c dbname1
+--
+DO $$
+BEGIN
+    EXECUTE format(
+        'CREATE TABLE table1_%s (t text)',
+        to_char(now() - '12 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table1_%s (t text)',
+        to_char(now() - '13 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table2_%s (t text)',
+        to_char(now() - '10 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table2_%s (t text)',
+        to_char(now() - '14 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table3_%s (t text)',
+        to_char(now() - '24 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table3_%s (t text)',
+        to_char(now() - '25 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table3_exc_%s (t text)',
+        to_char(now() - '36 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table3_exc_%s (t text)',
+        to_char(now() - '37 months'::interval, 'YYYYMM'));
+END $$;
+--
+\c dbname2
+--
+DO $$
+BEGIN
+    EXECUTE format(
+        'CREATE TABLE table1_%s (t text)',
+        to_char(now() - '12 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table1_%s (t text)',
+        to_char(now() - '13 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table2_%s (t text)',
+        to_char(now() - '10 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table2_%s (t text)',
+        to_char(now() - '14 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table3_%s (t text)',
+        to_char(now() - '24 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table3_%s (t text)',
+        to_char(now() - '25 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table3_exc_%s (t text)',
+        to_char(now() - '36 months'::interval, 'YYYYMM'));
+    EXECUTE format(
+        'CREATE TABLE table3_exc_%s (t text)',
+        to_char(now() - '37 months'::interval, 'YYYYMM'));
+END $$;
+
+/*
+
+bash bin/archive_tables.sh
+
+*/
+
 --
