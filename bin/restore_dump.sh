@@ -32,6 +32,10 @@ if $RESTORE_DROP; then
         error=$($PSQL -XAtq \
             -c "DROP DATABASE \"$RESTORE_DBNAME\"" postgres 2>&1) || \
             die "Can not drop database: $error."
+
+        dbname_list=$( \
+            $PSQL -XAt -c "SELECT datname FROM pg_database" postgres 2>&1) || \
+            die "Can not get database list after drop: $dbname_list."
     fi
 fi
 
