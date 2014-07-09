@@ -28,8 +28,10 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
                 $dbname 2>&1) || \
         die "Can not get a partition list: $part_list."
 
-    test -z "$part_list" && \
+    if [ -z "$part_list" ]; then
         info "There is nothing to archive in the database $dbname."
+        continue
+    fi
 
     ts=$(date +%Y%m%d%H%M)
 
