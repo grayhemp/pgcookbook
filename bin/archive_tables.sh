@@ -35,8 +35,10 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
 
     ts=$(date +%Y%m%d%H%M)
 
-    error=$(mkdir -p $ARCHIVE_LOCAL_DIR/$dbname 2>&1) || \
-        die "Can not make a database directory for $dbname: $error."
+    if ! $ARCHIVE_DRY_RUN; then
+        error=$(mkdir -p $ARCHIVE_LOCAL_DIR/$dbname 2>&1) || \
+            die "Can not make a database directory for $dbname: $error."
+    fi
 
     for part in $part_list; do
         file=$part.$ts.dump
@@ -49,29 +51,33 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
         test -f $ARCHIVE_ARCHIVE_DIR/$dbname/$file && \
             die "File $dbname/$file allready exists in archive."
 
-        error=$($PGDUMP -F c -Z 2 -t $part \
-                    -f $ARCHIVE_LOCAL_DIR/$dbname/$file $dbname 2>&1) || \
-            die "Can not dump partition $part from $dbname: $error."
+        if ! $ARCHIVE_DRY_RUN; then
+            error=$($PGDUMP -F c -Z 2 -t $part \
+                        -f $ARCHIVE_LOCAL_DIR/$dbname/$file $dbname 2>&1) || \
+                die "Can not dump partition $part from $dbname: $error."
 
-        error=$(ARCHIVE_COMMAND_BEFORE_DROP $dbname $part $file 2>&1) || \
-            die "Before-command error for $part from $dbname: $error."
+            error=$(ARCHIVE_COMMAND_BEFORE_DROP $dbname $part $file 2>&1) || \
+                die "Before-command error for $part from $dbname: $error."
 
-        error=$($PSQL -c "DROP TABLE $part;" $dbname 2>&1) || \
-            die "Can not drop partition $part from $dbname: $error."
+            error=$($PSQL -c "DROP TABLE $part;" $dbname 2>&1) || \
+                die "Can not drop partition $part from $dbname: $error."
 
-        error=$(ARCHIVE_COMMAND_AFTER_DROP $dbname $part $file 2>&1) || \
-            die "After-command error for $part from $dbname: $error."
+            error=$(ARCHIVE_COMMAND_AFTER_DROP $dbname $part $file 2>&1) || \
+                die "After-command error for $part from $dbname: $error."
 
-        info "Partition $part from $dbname dumped in $dbname/$file."
+            info "Partition $part from $dbname dumped in $dbname/$file."
+        else
+            info "Partition $part from $dbname can be dumped in $dbname/$file."
+        fi
     done
 
-    if [ $ARCHIVE_LOCAL_DIR != $ARCHIVE_ARCHIVE_DIR ]; then
-        error=$($RSYNC $ARCHIVE_LOCAL_DIR/$dbname \
-                $ARCHIVE_ARCHIVE_DIR 2>&1) || \
-            die "Can sync directory $dbname to archive: $error."
-        error=$(rm -rf $ARCHIVE_LOCAL_DIR/$dbname 2>&1) || \
-            die "Can not clean directory $dbname localy: $error."
-
-        info "Partitions from $dbname archived."
+    if ! $ARCHIVE_DRY_RUN; then
+        if [ $ARCHIVE_LOCAL_DIR != $ARCHIVE_ARCHIVE_DIR ]; then
+            error=$($RSYNC $ARCHIVE_LOCAL_DIR/$dbname \
+                    $ARCHIVE_ARCHIVE_DIR 2>&1) || \
+                die "Can sync directory $dbname to archive: $error."
+            error=$(rm -rf $ARCHIVE_LOCAL_DIR/$dbname 2>&1) || \
+                die "Can not clean directory $dbname localy: $error."
+        fi
     fi
 done
