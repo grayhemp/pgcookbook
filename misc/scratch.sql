@@ -95,6 +95,7 @@ BEGIN
                     users, dbs,
                     100 * time / sum(time) OVER () AS time_percent,
                     100 * io_time / sum(time) OVER () AS io_time_percent,
+                    100 * io_time / sum(io_time) OVER () AS io_time_perc_rel,
                     100 * calls / sum(calls) OVER () AS calls_percent,
                     CASE
                         WHEN row_number() OVER () > i_n THEN 'other'
@@ -110,6 +111,7 @@ BEGIN
                     sum(io_time)::numeric(18,3) AS io_time,
                     sum(time_percent)::numeric(5,2) AS time_percent,
                     sum(io_time_percent)::numeric(5,2) AS io_time_percent,
+                    sum(io_time_perc_rel)::numeric(5,2) AS io_time_perc_rel,
                     sum(time_avg)::numeric(18,3) AS time_avg,
                     sum(io_time_avg)::numeric(18,3) AS io_time_avg,
                     sum(calls) AS calls,
@@ -139,14 +141,14 @@ BEGIN
                 format(
                     E'Position: %s\n' ||
                     E'Time: %s%%, %s ms, %s ms avg\n' ||
-                    E'IO time: %s%%, %s ms, %s ms avg\n' ||
+                    E'IO time: %s%% (%s%% rel), %s ms, %s ms avg\n' ||
                     E'Calls: %s%%, %s\n' ||
                     E'Rows: %s, %s avg\n' ||
                     E'Users: %s\n'||
                     E'Databases: %s\n\n%s',
                     row_number, time_percent, time, time_avg, io_time_percent,
-                    io_time, io_time_avg, calls_percent, calls, rows, rows_avg,
-                    users, dbs, query),
+                    io_time_perc_rel, io_time, io_time_avg, calls_percent,
+                    calls, rows, rows_avg, users, dbs, query),
                 E'\n\n')
             FROM q3;
 
