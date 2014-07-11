@@ -138,13 +138,19 @@ test -z $STAT_ORDER && STAT_ORDER=0
 STAT_KEEP_SNAPSHOTS='7 days'
 
 TERMINATE_CONDITIONS=$(cat <<EOF
+state <> 'idle' AND -- Recommended due to a pg_stat_activity bug when
+                    -- sometimes state is not in sync with xact_start.
+                    -- Makes sence for >=9.2.
 (
-    usename IN ('user1', 'user2') AND
-    now() - xact_start > '10 second'::interval
-) OR (
-    usename NOT IN ('postgres') AND
-    now() - xact_start > '180 second'::interval
+    (
+        usename IN ('user1', 'user2') AND
+        now() - xact_start > '10 second'::interval
+    ) OR (
+        usename NOT IN ('postgres') AND
+        now() - xact_start > '180 second'::interval
+    )
 )
+EOF
 EOF
 )
 
