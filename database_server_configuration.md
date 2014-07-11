@@ -237,7 +237,8 @@ this are below. Add them to `/etc/rc.local`.
 
 On Linux add the appropriate `blockdev` settings for the data
 partition. Usually good settings for modern systems looks like it is
-shown below. Add them to `rc.local`.
+shown below. Add them to `rc.local`. To find out device names use `ls
+-l /dev/disk/by-*` and `ls -l /dev/mapper/`.
 
     echo noop > /sys/block/sdb/queue/scheduler
     echo 16384 > /sys/block/sdb/queue/read_ahead_kb
