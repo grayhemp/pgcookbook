@@ -114,9 +114,18 @@ BEGIN
                 SELECT
                     time, io_time, time_avg, io_time_avg, rows, rows_avg, calls,
                     users, dbs,
-                    100 * time / sum(time) OVER () AS time_percent,
-                    100 * io_time / sum(time) OVER () AS io_time_percent,
-                    100 * io_time / sum(io_time) OVER () AS io_time_perc_rel,
+                    CASE
+                        WHEN sum(time) OVER () > 0 THEN
+                            100 * time / sum(time) OVER ()
+                        ELSE 0 END AS time_percent,
+                    CASE
+                        WHEN sum(time) OVER () > 0 THEN
+                            100 * io_time / sum(time) OVER ()
+                        ELSE 0 END AS io_time_percent,
+                    CASE
+                        WHEN sum(io_time) OVER () > 0 THEN
+                            100 * io_time / sum(io_time) OVER ()
+                        ELSE 0 END AS io_time_perc_rel,
                     100 * calls / sum(calls) OVER () AS calls_percent,
                     CASE
                         WHEN row_number() OVER () > i_n THEN 'other'
