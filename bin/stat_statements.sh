@@ -23,7 +23,7 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 table_version=1
-function_version=1
+function_version=2
 
 sql=$(cat <<EOF
 DO \$do\$
@@ -96,14 +96,17 @@ BEGIN
                     sum(calls) AS calls,
                     string_agg(usename, ' ') AS users,
                     string_agg(datname, ' ') AS dbs,
-                    query AS raw_query
+                    regexp_replace(
+                        regexp_replace(query, '--(.*?$)', '-- [comment]', 'gm'),
+                        E'\\\\/\\\\*(.*?)\\\\*\\\\/', '/* [comment] */', 'gs'
+                    ) AS raw_query
                 FROM public.stat_statements
                 LEFT JOIN pg_catalog.pg_user ON userid = usesysid
                 LEFT JOIN pg_catalog.pg_database ON dbid = pg_database.oid
                 WHERE
                     replica_dsn = i_replica_dsn AND
                     created > i_since AND created <= i_till
-                GROUP BY query
+                GROUP BY raw_query
                 ORDER BY
                     CASE
                         WHEN i_order = 0 THEN sum(total_time)
@@ -261,9 +264,9 @@ else
     test $STAT_ORDER -eq 2 && order='IO time'
 
     if [ -z $STAT_REPLICA_DSN ]; then
-        info "Master report, order by $order"
+        info "Master report, order by $order\n"
     else
-        info "Replica report '$STAT_REPLICA_DSN'"
+        info "Replica report '$STAT_REPLICA_DSN'\n"
     fi
 
    sql=$(cat <<EOF

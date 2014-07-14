@@ -75,7 +75,10 @@ BEGIN
                     sum(calls) AS calls,
                     string_agg(usename, ' ') AS users,
                     string_agg(datname, ' ') AS dbs,
-                    query AS raw_query
+                    regexp_replace(
+                        regexp_replace(s, '--(.*?$)', '-- [comment]', 'gm'),
+                        E'\\/\\*(.*?)\\*\\/', '/* [comment] */', 'gs'
+                    ) AS raw_query
                 FROM public.stat_statements
                 LEFT JOIN pg_catalog.pg_user ON userid = usesysid
                 LEFT JOIN pg_catalog.pg_database ON dbid = pg_database.oid
@@ -93,9 +96,18 @@ BEGIN
                 SELECT
                     time, io_time, time_avg, io_time_avg, rows, rows_avg, calls,
                     users, dbs,
-                    100 * time / sum(time) OVER () AS time_percent,
-                    100 * io_time / sum(time) OVER () AS io_time_percent,
-                    100 * io_time / sum(io_time) OVER () AS io_time_perc_rel,
+                    CASE
+                        WHEN sum(time) OVER () > 0 THEN
+                            100 * time / sum(time) OVER ()
+                        ELSE 0 END AS time_percent,
+                    CASE
+                        WHEN sum(time) OVER () > 0 THEN
+                            100 * io_time / sum(time) OVER ()
+                        ELSE 0 END AS io_time_percent,
+                    CASE
+                        WHEN sum(io_time) OVER () > 0 THEN
+                            100 * io_time / sum(io_time) OVER ()
+                        ELSE 0 END AS io_time_perc_rel,
                     100 * calls / sum(calls) OVER () AS calls_percent,
                     CASE
                         WHEN row_number() OVER () > i_n THEN 'other'
@@ -166,10 +178,49 @@ BEGIN
     END IF;
 END $do$;
 
-INSERT INTO public.stat_statements
-SELECT 'host=host3', now(), * FROM pg_stat_statements;
+WITH def AS (
+SELECT $$
+some /* thing */ has /* been
+carefully
+written
+somewhere
+here */ -- yep
+and -- here
+also
+$$::text AS s
+)
+SELECT
+    regexp_replace(
+        regexp_replace(s, '--(.*?$)', '-- [comment]', 'gm'),
+        E'\\/\\*(.*?)\\*\\/', '/* [comment] */', 'gs')
+FROM def;
+
+TRUNCATE TABLE stat_statements;
 
 SELECT pg_stat_statements_reset();
+
+SELECT column1, /* 12 */ column2 -- 12
+FROM (VALUES (1, 2)) AS s; -- 34
+-- 56
+
+SELECT column1, /* 56 */ column2 -- 56
+FROM (VALUES (1, 2)) AS s; -- 78
+-- 90
+
+SELECT * FROM pg_stat_statements WHERE query ~ 'column1';
+
+INSERT INTO public.stat_statements
+SELECT '', now(), * FROM pg_stat_statements;
+
+DELETE FROM stat_statements WHERE query !~ 'column1';
+
+SELECT * FROM stat_statements;
+
+SELECT public.stat_statements_get_report(
+    '', now()::date - 1, now()::date + 1, 10, 2);
+
+INSERT INTO public.stat_statements
+SELECT 'host=host3', now(), * FROM pg_stat_statements;
 
 INSERT INTO public.stat_statements
 SELECT 'host=host4', now(), * FROM dblink(
