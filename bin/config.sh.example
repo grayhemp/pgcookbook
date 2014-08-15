@@ -151,7 +151,6 @@ state <> 'idle' AND -- Recommended due to a pg_stat_activity bug when
     )
 )
 EOF
-EOF
 )
 
 test -z $PROCESS_DBNAME && PROCESS_DBNAME=
