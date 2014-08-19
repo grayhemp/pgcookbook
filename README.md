@@ -30,6 +30,8 @@ new ways of doing things appear. Stay tuned.
 
 Thank you:
 
+- [Nitro Software, Inc.](http://www.nitropdf.com) for code
+  contribution
 - [PostgreSQL-Consulting.com](http://www.postgresql-consulting.com)
   for lots of testing
 - [Maxim Boguk](mailto:maxim.boguk@gmail.com) for insights, useful
