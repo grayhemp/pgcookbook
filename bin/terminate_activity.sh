@@ -35,4 +35,4 @@ WHERE $TERMINATE_CONDITIONS
 EOF
 )
 
-$PSQL -XAtx -F ': ' -c "$sql" | sed '${/^$/d;}'
+$PSQL -XAtx -F ': ' -c "$sql" postgres | sed '${/^$/d;}'
