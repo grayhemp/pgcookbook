@@ -12,7 +12,7 @@ function die() {
 }
 
 function info() {
-    echo -e "$(date)  INFO $(basename $0): $1"
+    echo -e "$(date) INFO $(basename $0): $1"
 }
 
 function progress() {
