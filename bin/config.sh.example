@@ -6,7 +6,7 @@
 #
 # Settings can be written in the form
 #
-#     test -z $SETTING && SETTING='value'
+#     test -z "$SETTING" && SETTING='value'
 #
 # that means you can also set them from the command line, eg.
 #
@@ -16,13 +16,13 @@
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
-test -z $HOST && HOST=
-test -z $PORT && PORT=
-test -z $USER && USER=
+test -z "$HOST" && HOST=
+test -z "$PORT" && PORT=
+test -z "$USER" && USER=
 
-DSN="$(test ! -z $HOST && echo '-h' $HOST) \
-     $(test ! -z $PORT && echo '-p' $PORT) \
-     $(test ! -z $USER && echo '-U' $USER)"
+DSN="$(test ! -z "$HOST" && echo '-h' $HOST) \
+     $(test ! -z "$PORT" && echo '-p' $PORT) \
+     $(test ! -z "$USER" && echo '-U' $USER)"
 
 PSQL="/usr/bin/psql $DSN"
 PGDUMP="/usr/bin/pg_dump $DSN"
@@ -31,12 +31,12 @@ PGDUMPALL="/usr/bin/pg_dumpall $DSN"
 RSYNC='/usr/bin/rsync -aq'
 SSH='/usr/bin/ssh'
 
-test -z $TUNNEL_PORT && TUNNEL_PORT=2345
-test -z $TUNNEL_HOST_PORT && TUNNEL_HOST_PORT=5432
-test -z $TUNNEL_HOST && TUNNEL_HOST='host2'
+test -z "$TUNNEL_PORT" && TUNNEL_PORT=2345
+test -z "$TUNNEL_HOST_PORT" && TUNNEL_HOST_PORT=5432
+test -z "$TUNNEL_HOST" && TUNNEL_HOST='host2'
 TUNNEL_COMP_LEVEL=2
 TUNNEL_RETRY_DELAY=60
-test -z $TUNNEL_LOCK_FILE && \
+test -z "$TUNNEL_LOCK_FILE" && \
     TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_HOST.$TUNNEL_HOST_PORT"
 
 DUMPS_DBNAME_LIST='dbname1 dbname2'
@@ -46,9 +46,9 @@ DUMPS_KEEP_DAILY_PARTS='3 days'
 DUMPS_KEEP_WEEKLY_PARTS='1 month'
 DUMPS_KEEP_MONTHLY_PARTS='1 year'
 
-test -z $RESTORE_DROP && RESTORE_DROP=true
-test -z $RESTORE_DBNAME && RESTORE_DBNAME='dbname2_latest'
-test -z $RESTORE_FILE && \
+test -z "$RESTORE_DROP" && RESTORE_DROP=true
+test -z "$RESTORE_DBNAME" && RESTORE_DBNAME='dbname2_latest'
+test -z "$RESTORE_FILE" && \
     RESTORE_FILE=$( \
         find $DUMPS_ARCHIVE_DIR -maxdepth 1 -mindepth 1 | \
         sort | tail -n 1)'/dbname2.dump.gz'
@@ -129,12 +129,12 @@ function ARCHIVE_COMMAND_AFTER_DROP() {
 }
 
 STAT_DBNAME='dbname1'
-test -z $STAT_REPLICA_DSN && STAT_REPLICA_DSN=
-test -z $STAT_SNAPSHOT && STAT_SNAPSHOT=false
-test -z $STAT_SINCE && STAT_SINCE=$(date -I)
-test -z $STAT_TILL && STAT_TILL=$(date -I --date='+1 day')
-test -z $STAT_N && STAT_N=10
-test -z $STAT_ORDER && STAT_ORDER=0
+test -z "$STAT_REPLICA_DSN" && STAT_REPLICA_DSN=
+test -z "$STAT_SNAPSHOT" && STAT_SNAPSHOT=false
+test -z "$STAT_SINCE" && STAT_SINCE=$(date -I)
+test -z "$STAT_TILL" && STAT_TILL=$(date -I --date='+1 day')
+test -z "$STAT_N" && STAT_N=10
+test -z "$STAT_ORDER" && STAT_ORDER=0
 STAT_KEEP_SNAPSHOTS='7 days'
 
 TERMINATE_CONDITIONS=$(cat <<EOF
@@ -153,12 +153,12 @@ state <> 'idle' AND -- Recommended due to a pg_stat_activity bug when
 EOF
 )
 
-test -z $PROCESS_DBNAME && PROCESS_DBNAME=
+test -z "$PROCESS_DBNAME" && PROCESS_DBNAME=
 
 LAG_DBNAME='dbname1'
-test -z $LAG_DSN && LAG_DSN=
+test -z "$LAG_DSN" && LAG_DSN=
 LAG_RECEIVE=$((32 * 1024 * 1024))
 LAG_REPLAY=$((32 * 1024 * 1024))
 LAG_REPLAY_AGE='5 minutes'
 
-test -z $MATVIEWS_DBNAME && MATVIEWS_DBNAME=
+test -z "$MATVIEWS_DBNAME" && MATVIEWS_DBNAME=
