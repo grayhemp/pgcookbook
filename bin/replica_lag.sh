@@ -74,4 +74,11 @@ FROM filter;
 EOF
 )
 
-$PSQL -XAt -c "$sql" $LAG_DBNAME | sed '${/^$/d;}'
+message=$(
+    $PSQL -XAt -c "$sql" $LAG_DBNAME 2>&1) || \
+    die "Can not check the lag: $message."
+
+message=$(echo -e "$message" | sed '${/^$/d;}')
+
+test -z "$message" || \
+    die "Replication lag for '$LAG_DSN' was reported.\n$message"

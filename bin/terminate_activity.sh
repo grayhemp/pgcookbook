@@ -35,4 +35,11 @@ WHERE $TERMINATE_CONDITIONS
 EOF
 )
 
-$PSQL -XAtx -F ': ' -c "$sql" postgres | sed '${/^$/d;}'
+message=$(
+    $PSQL -XAtx -F ': ' -c "$sql" postgres 2>&1) || \
+    die "Can not run the terminating SQL: $message."
+
+message=$(echo -e "$message" | sed '${/^$/d;}')
+
+test -z "$message" || \
+    die "Some activity has been terminated.\n$message"

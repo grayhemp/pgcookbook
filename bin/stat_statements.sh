@@ -264,9 +264,9 @@ else
     test $STAT_ORDER -eq 2 && order='IO time'
 
     if [ -z $STAT_REPLICA_DSN ]; then
-        info "Master report, order by $order\n"
+        info "Master report ordered by $order."
     else
-        info "Replica report '$STAT_REPLICA_DSN'\n"
+        info "Replica report for '$STAT_REPLICA_DSN' ordered by $order."
     fi
 
    sql=$(cat <<EOF
@@ -274,5 +274,7 @@ SELECT public.stat_statements_get_report(
     '$STAT_REPLICA_DSN', '$STAT_SINCE', '$STAT_TILL', $STAT_N, $STAT_ORDER);
 EOF
     )
-    $PSQL -XAt -c "$sql" $STAT_DBNAME
+    report=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
+        die "Can not get a report: $report."
+    echo "$report"
 fi
