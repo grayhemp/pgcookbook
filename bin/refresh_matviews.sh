@@ -48,7 +48,7 @@ WITH RECURSIVE dependent (c_oid, cr_oids) AS (
 (
     SELECT
         regexp_replace(
-            indexdef, 'CREATE INDEX (\\w+).*', 'DROP INDEX CONCURRENTLY \\1;')
+            indexdef, '^.* INDEX (\\w+).*', 'DROP INDEX CONCURRENTLY \\1;')
     FROM matview AS m
     JOIN pg_catalog.pg_indexes AS i ON
         i.tablename = m.relname AND i.schemaname = m.nspname
@@ -62,7 +62,7 @@ WITH RECURSIVE dependent (c_oid, cr_oids) AS (
 ) UNION ALL (
     SELECT
         regexp_replace(
-            indexdef, 'CREATE INDEX (.+)', 'CREATE INDEX CONCURRENTLY \\1;')
+            indexdef, 'INDEX (.+)', 'INDEX CONCURRENTLY \\1;')
     FROM matview AS m
     JOIN pg_catalog.pg_indexes AS i ON
         i.tablename = m.relname AND i.schemaname = m.nspname
