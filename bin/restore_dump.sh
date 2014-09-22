@@ -6,10 +6,14 @@
 # tables, data from other tables and a part of the data from another
 # tables, obtained as a result of RESTORE_FILTER_SQL,
 # RESTORE_FILTER_DATA_SQL and RESTORE_FILTER_DATA_PART_SQL
-# accordingly. Uses RESTORE_THREADS threads to restore. If the
-# specified database exists and RESTORE_DROP is true it drops the
-# database terminating all the connections to this database
-# preliminarily, otherwise it exits with an error.
+# accordingly. Tables defined with RESTORE_PRESERVE_SQL are preserved
+# with the same data as it was in the RESTORE_DBNAME if one existed,
+# otherwise they are not restored. RESTORE_PRESERVE_DIR is used as a
+# temporary storage fro preserving tables. Uses RESTORE_THREADS
+# threads to restore. If the specified database exists and
+# RESTORE_DROP is true it drops the database terminating all the
+# connections to this database preliminarily, otherwise it exits with
+# an error.
 #
 # Copyright (c) 2013 Sergey Konoplev
 #
@@ -21,6 +25,35 @@ source $(dirname $0)/utils.sh
 dbname_list=$( \
     $PSQL -XAt -c "SELECT datname FROM pg_database" postgres 2>&1) || \
     die "Can not get database list: $dbname_list."
+
+if contains "$dbname_list" $RESTORE_DBNAME; then
+    preserve_list=$( \
+        $PSQL -XAt -F '.'  -c "$RESTORE_PRESERVE_SQL" $RESTORE_DBNAME 2>&1) || \
+        die "Can not get preserve list: $preserve_list."
+
+    preserve_filter_list=$( \
+        $PSQL -XAt -R '|' -F ' '  -c "$RESTORE_PRESERVE_SQL" \
+        $RESTORE_DBNAME 2>&1) || \
+        die "Can not get preserve list: $preserve_list."
+
+    if [ ! -z "$preserve_list" ]; then
+        error=$(mkdir -p $RESTORE_PRESERVE_DIR 2>&1) || \
+            die "Can not make a preserve directory for $RESTORE_DBNAME: $error."
+
+        for preserve in $preserve_list; do
+            file=$RESTORE_DBNAME-$preserve.dump
+
+            test -f $RESTORE_PRESERVE_DIR/$file && \
+                die "Preserved dump $file allready exists."
+
+            error=$($PGDUMP -F c -Z 2 -t $preserve \
+                -f $RESTORE_PRESERVE_DIR/$file $RESTORE_DBNAME 2>&1) || \
+                die "Can not preserve $preserve from $RESTORE_DBNAME: $error."
+
+            info "Table $preserve from $RESTORE_DBNAME preserved in $file."
+        done
+    fi
+fi
 
 if $RESTORE_DROP; then
     if contains "$dbname_list" $RESTORE_DBNAME; then
@@ -53,6 +86,10 @@ filter_list=$( \
     $PSQL -XAt -R '|' -F ' '  -c "$RESTORE_FILTER_SQL" \
     $RESTORE_DBNAME 2>&1) || \
     die "Can not get filter list: $filter_list."
+
+if [ ! -z "$preserve_filter_list" ]; then
+    filter_list="$filter_list|$preserve_filter_list"
+fi
 
 filter_data_list=$( \
     $PSQL -XAt -R '|' -F ' '  -c "$RESTORE_FILTER_DATA_SQL" \
@@ -130,5 +167,23 @@ error=$(
     sed -r 's/(.+) (.+)/DROP TABLE \1.\2 CASCADE;/' | \
     xargs -I "{}" $PSQL -XAtq -c "{}" $RESTORE_DBNAME 2>&1) || \
     die "Can not drop tables: $error."
+
+if [ ! -z "$preserve_list" ]; then
+    for preserve in $preserve_list; do
+        file=$RESTORE_DBNAME-$preserve.dump
+
+        error=$( \
+            $PGRESTORE -e -d $RESTORE_DBNAME -F c \
+            $RESTORE_PRESERVE_DIR/$file 2>&1) || \
+            die "Can not restore preserved $file in $RESTORE_DBNAME: $error."
+
+        info "Restored preserved $file in $RESTORE_DBNAME."
+
+        error=$(rm $RESTORE_PRESERVE_DIR/$file 2>&1) || \
+            die "Can not remove preserved dump $file: $error."
+
+        info "Preserve dump $file removed."
+    done
+fi
 
 info "Database restored."

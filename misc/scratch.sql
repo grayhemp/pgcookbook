@@ -433,4 +433,44 @@ bash bin/archive_tables.sh
 
 */
 
+-- restore_dump.sh
+
+\c postgres
+DROP DATABASE IF EXISTS dbname1;
+--
+CREATE DATABASE dbname1;
+--
+\c dbname1
+--
+CREATE TABLE table1 AS
+SELECT i AS id
+FROM generate_series(1, 5) i;
+--
+CREATE TABLE log1 AS
+SELECT i AS id
+FROM generate_series(1, 5) i;
+--
+CREATE TABLE data1 AS
+SELECT i AS id, i % 2 AS status
+FROM generate_series(1, 5) i;
+--
+CREATE TABLE pres1 AS
+SELECT i AS id
+FROM generate_series(1, 5) i;
+
+/*
+
+bash manage_dumps.sh
+
+*/
+
+INSERT INTO pres1 VALUES(6);
+DELETE FROM pres1 WHERE id = 5;
+
+/*
+
+RESTORE_DBNAME=dbname1 bash restore_dump.sh
+
+*/
+
 --
