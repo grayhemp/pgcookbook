@@ -41,84 +41,60 @@ test -z "$TUNNEL_LOCK_FILE" && \
 
 DUMPS_DBNAME_LIST='dbname1 dbname2'
 DUMPS_LOCAL_DIR=
-DUMPS_ARCHIVE_DIR='/storage/dumps'
+DUMPS_ARCHIVE_DIR='/mnt/archive/dumps'
 DUMPS_KEEP_DAILY_PARTS='3 days'
 DUMPS_KEEP_WEEKLY_PARTS='1 month'
 DUMPS_KEEP_MONTHLY_PARTS='1 year'
 
 test -z "$RESTORE_DROP" && RESTORE_DROP=true
-test -z "$RESTORE_DBNAME" && RESTORE_DBNAME='dbname2_latest'
+test -z "$RESTORE_DBNAME" && RESTORE_DBNAME='dbname1_latest'
 test -z "$RESTORE_FILE" && \
     RESTORE_FILE=$( \
         find $DUMPS_ARCHIVE_DIR -maxdepth 1 -mindepth 1 | \
-        sort | tail -n 1)'/dbname2.dump.gz'
+        sort | tail -n 1)'/dbname1.dump.gz'
 RESTORE_THREADS=4
-RESTORE_FILTER_MASK=$(cat <<EOF
-temp1|temp2
-EOF
-)
 RESTORE_FILTER_SQL=$(cat <<EOF
     SELECT schemaname, tablename FROM pg_tables
-    WHERE tablename ~ '$RESTORE_FILTER_MASK'
-EOF
-)
-RESTORE_FILTER_DATA_MASK=$(cat <<EOF
-log1|log2
+    WHERE tablename ~ 'temp1|temp2'
 EOF
 )
 RESTORE_FILTER_DATA_SQL=$(cat <<EOF
     SELECT schemaname, tablename FROM pg_tables
-    WHERE tablename ~ '$RESTORE_FILTER_DATA_MASK'
-EOF
-)
-RESTORE_FILTER_DATA_PART_MASK=$(cat <<EOF
-data1|data2
-EOF
-)
-RESTORE_FILTER_DATA_PART_COND=$(cat <<EOF
-status <> 1 OR deleted
+    WHERE tablename ~ 'log1|log2'
 EOF
 )
 RESTORE_FILTER_DATA_PART_SQL=$(cat <<EOF
     SELECT
         schemaname, tablename,
-        '$RESTORE_FILTER_DATA_PART_COND' AS conditions
+        'status <> 1' AS conditions
     FROM pg_tables
-    WHERE tablename ~ '$RESTORE_FILTER_DATA_PART_MASK'
+    WHERE tablename ~ 'data1|data2'
+EOF
+)
+RESTORE_PRESERVE_DIR='/mnt/archive/tmp'
+RESTORE_PRESERVE_SQL=$(cat <<EOF
+    SELECT schemaname, tablename FROM pg_tables
+    WHERE tablename ~ 'pres1|pres2'
 EOF
 )
 
 ARCHIVE_DBNAME_LIST='dbname1 dbname2'
 ARCHIVE_LOCAL_DIR=
-ARCHIVE_ARCHIVE_DIR='/storage/parts'
-ARCHIVE_TYPE1_PARTS_KEEP='1 year'
-ARCHIVE_TYPE1_PARTS_MASK=$(cat <<EOF
-table1|table2
-EOF
-)
-ARCHIVE_TYPE2_PARTS_KEEP='2 years'
-ARCHIVE_TYPE2_PARTS_MASK=$(cat <<EOF
-table3|table4
-EOF
-)
+ARCHIVE_ARCHIVE_DIR='/mnt/archive/parts'
 ARCHIVE_PARTS_SQL=$(cat <<EOF
     SELECT schemaname, tablename
     FROM pg_tables
     WHERE
-        tablename ~ E'($ARCHIVE_TYPE1_PARTS_MASK)_\\\\d{4}\\\\d{2}$' AND
-        to_timestamp(
-            regexp_replace(tablename, '^.+_', ''),
-            'YYYYMM') < date_trunc('month', now()) -
-            '$ARCHIVE_TYPE1_PARTS_KEEP'::interval
+        tablename ~ E'(table1|table2)_\\\\d{4}\\\\d{2}$' AND
+        to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
+            date_trunc('month', now()) - '1 year'::interval
     UNION
     SELECT schemaname, tablename
     FROM pg_tables
     WHERE
-        tablename ~ E'($ARCHIVE_TYPE2_PARTS_MASK)_\\\\d{4}\\\\d{2}$' AND
-        to_timestamp(
-            regexp_replace(tablename, '^.+_', ''),
-            'YYYYMM') < date_trunc('month', now()) -
-            '$ARCHIVE_TYPE2_PARTS_KEEP'::interval
+        tablename ~ E'(table3|table4)_\\\\d{4}\\\\d{2}$' AND
+        to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
+            date_trunc('month', now()) - '2 years'::interval
 EOF
 )
 function ARCHIVE_COMMAND_BEFORE_DROP() {
