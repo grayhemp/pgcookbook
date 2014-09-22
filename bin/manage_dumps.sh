@@ -24,7 +24,7 @@ fi
 
 dump_dir=$(date +%Y%m%d)
 
-error=$(mkdir $DUMPS_LOCAL_DIR/$dump_dir 2>&1) || \
+error=$(mkdir -p $DUMPS_LOCAL_DIR/$dump_dir 2>&1) || \
     die "Can not make $dump_dir dumps directory: $error."
 
 error=$($PGDUMPALL -g -f $DUMPS_LOCAL_DIR/$dump_dir/globals.sql 2>&1) || \
