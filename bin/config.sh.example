@@ -6,7 +6,7 @@
 #
 # Settings can be written in the form
 #
-#     test -z "$SETTING" && SETTING='value'
+#     test -z "$SETTING" && SETTING='some value'
 #
 # that means you can also set them from the command line, eg.
 #
