@@ -473,4 +473,67 @@ RESTORE_DBNAME=dbname1 bash restore_dump.sh
 
 */
 
+-- commit_schema.sh
+
+\c postgres
+DROP DATABASE IF EXISTS dbname1;
+--
+CREATE DATABASE dbname1;
+--
+DROP DATABASE IF EXISTS dbname2;
+--
+CREATE DATABASE dbname2;
+--
+\c dbname1
+--
+CREATE TABLE table1 AS
+SELECT i AS id
+FROM generate_series(1, 5) i;
+--
+\c dbname2
+--
+CREATE TABLE table2 AS
+SELECT i AS id
+FROM generate_series(1, 5) i;
+--
+CREATE SCHEMA pgq;
+--
+CREATE SCHEMA partitions;
+--
+CREATE TABLE partitions.part1 (t text);
+
+/*
+
+rm -rf /tmp/_repo
+rm -rf /mnt/archive/repo
+rm /tmp/_repo_id_rsa
+mkdir -p /tmp/_repo
+git -C /tmp/_repo init --bare
+git clone /tmp/_repo /mnt/archive/repo
+touch /mnt/archive/repo/file
+git -C /mnt/archive/repo add .
+git -C /mnt/archive/repo ci -m 'Initial commit.'
+git -C /mnt/archive/repo push origin master
+ssh-keygen -t rsa -f /tmp/_repo_id_rsa
+
+SCHEMA_SSH_KEY='/tmp/_repo_id_rsa' bash commit_schema.sh
+
+*/
+
+\c dbname1
+--
+CREATE SCHEMA schema2;
+
+/*
+
+bash commit_schema.sh
+
+git -C /mnt/archive/repo log -p
+
+*/
+
+\c dbname1
+--
+DROP SCHEMA schema2;
+
 --

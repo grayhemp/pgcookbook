@@ -30,6 +30,9 @@ PGRESTORE="/usr/bin/pg_restore $DSN"
 PGDUMPALL="/usr/bin/pg_dumpall $DSN"
 RSYNC='/usr/bin/rsync -aq'
 SSH='/usr/bin/ssh'
+SSHADD='/usr/bin/ssh-add'
+SSHAGENT='/usr/bin/ssh-agent'
+GIT='/usr/bin/git'
 
 test -z "$TUNNEL_PORT" && TUNNEL_PORT=2345
 test -z "$TUNNEL_HOST_PORT" && TUNNEL_HOST_PORT=5432
@@ -138,3 +141,18 @@ LAG_REPLAY=$((32 * 1024 * 1024))
 LAG_REPLAY_AGE='5 minutes'
 
 test -z "$MATVIEWS_DBNAME" && MATVIEWS_DBNAME=
+
+SCHEMA_DBNAME_LIST='dbname1 dbname2'
+SCHEMA_DIR='/mnt/archive/repo'
+SCHEMA_EXCLUDE_SCHEMA_SQL=$(cat <<EOF
+    SELECT nspname FROM pg_namespace
+    WHERE nspname ~ '^(pgq.*|londiste)$'
+EOF
+)
+SCHEMA_EXCLUDE_TABLE_SQL=$(cat <<EOF
+    SELECT schemaname, tablename FROM pg_tables
+    WHERE schemaname = 'partitions'
+EOF
+)
+test -z "$SCHEMA_SSH_KEY" && SCHEMA_SSH_KEY=
+test -z "$SCHEMA_ACTION" && SCHEMA_ACTION=
