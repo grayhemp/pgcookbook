@@ -10,7 +10,8 @@
 # ARCHIVE_LOCAL_DIR is not specified or is empty, then it archives
 # partitions directly to ARCHIVE_ARCHIVE_DIR. The values of database
 # name, table name and archived file name are sent to the
-# ARCHIVE_COMMAND_*_DROP functions as $1, $2 and $3 accordingly.
+# ARCHIVE_COMMAND_*_DROP functions as $1, $2 and $3 accordingly. To
+# turn dry run mode on set ARCHIVE_DRY_RUN to 'true'.
 #
 # Copyright (c) 2013 Sergey Konoplev
 #

@@ -81,6 +81,7 @@ RESTORE_PRESERVE_SQL=$(cat <<EOF
 EOF
 )
 
+test -z "$ARCHIVE_DRY"_RUN && ARCHIVE_DRY_RUN=false
 ARCHIVE_DBNAME_LIST='dbname1 dbname2'
 ARCHIVE_LOCAL_DIR=
 ARCHIVE_ARCHIVE_DIR='/mnt/archive/parts'
