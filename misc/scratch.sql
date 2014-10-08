@@ -453,6 +453,10 @@ FROM generate_series(1, 5) i;
 CREATE TABLE data1 AS
 SELECT i AS id, i % 2 AS status
 FROM generate_series(1, 5) i;
+CREATE FUNCTION data1_err() RETURNS trigger LANGUAGE 'plpgsql' AS $$
+BEGIN RAISE EXCEPTION 'Boom!'; END $$;
+CREATE TRIGGER data1_err_t BEFORE INSERT ON data1 FOR EACH ROW
+EXECUTE PROCEDURE data1_err();
 --
 CREATE TABLE pres1 AS
 SELECT i AS id
@@ -460,7 +464,7 @@ FROM generate_series(1, 5) i;
 
 /*
 
-bash manage_dumps.sh
+bash bin/manage_dumps.sh
 
 */
 
@@ -469,9 +473,14 @@ DELETE FROM pres1 WHERE id = 5;
 
 /*
 
-RESTORE_DBNAME=dbname1 bash restore_dump.sh
+RESTORE_DBNAME=dbname1 bash bin/restore_dump.sh
 
 */
+
+SELECT * FROM table1;
+SELECT * FROM log1;
+SELECT * FROM data1;
+SELECT * FROM pres1;
 
 -- commit_schema.sh
 
