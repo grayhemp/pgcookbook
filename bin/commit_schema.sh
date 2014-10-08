@@ -62,8 +62,8 @@ fi
 if [ "$SCHEMA_ACTION" == 'commit' ] || [ -z "$SCHEMA_ACTION" ]; then
     commit_cmd=$(cat <<EOF
 cd $SCHEMA_DIR &&
-$GIT diff --exit-code --quiet ||
-($GIT add . && $GIT commit -m 'Updated DDL.' && $GIT pull -r && $GIT push)
+$GIT add . && $GIT diff --cached --exit-code --quiet ||
+($GIT commit -m 'Updated DDL.' && $GIT pull -r && $GIT push)
 EOF
     )
 
