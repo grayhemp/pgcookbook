@@ -16,6 +16,8 @@
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
+# Common settings for all the scripts
+
 test -z "$HOST" && HOST=
 test -z "$PORT" && PORT=
 test -z "$USER" && USER=
@@ -34,6 +36,8 @@ SSHADD='/usr/bin/ssh-add'
 SSHAGENT='/usr/bin/ssh-agent'
 GIT='/usr/bin/git'
 
+# ssh_tunnel.sh
+
 test -z "$TUNNEL_PORT" && TUNNEL_PORT=2345
 test -z "$TUNNEL_HOST_PORT" && TUNNEL_HOST_PORT=5432
 test -z "$TUNNEL_HOST" && TUNNEL_HOST='host2'
@@ -42,12 +46,16 @@ TUNNEL_RETRY_DELAY=60
 test -z "$TUNNEL_LOCK_FILE" && \
     TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_HOST.$TUNNEL_HOST_PORT"
 
+# manage_dumps.sh
+
 DUMPS_DBNAME_LIST='dbname1 dbname2'
 DUMPS_LOCAL_DIR=
 DUMPS_ARCHIVE_DIR='/mnt/archive/dumps'
 DUMPS_KEEP_DAILY_PARTS='3 days'
 DUMPS_KEEP_WEEKLY_PARTS='1 month'
 DUMPS_KEEP_MONTHLY_PARTS='1 year'
+
+# restore_dump.sh
 
 test -z "$RESTORE_DROP" && RESTORE_DROP=true
 test -z "$RESTORE_DBNAME" && RESTORE_DBNAME='dbname1_latest'
@@ -81,6 +89,8 @@ RESTORE_PRESERVE_SQL=$(cat <<EOF
 EOF
 )
 
+# archive_tables.sh
+
 test -z "$ARCHIVE_DRY"_RUN && ARCHIVE_DRY_RUN=false
 ARCHIVE_DBNAME_LIST='dbname1 dbname2'
 ARCHIVE_LOCAL_DIR=
@@ -108,6 +118,8 @@ function ARCHIVE_COMMAND_AFTER_DROP() {
     $PSQL -h host2 $1 -c "DROP TABLE $2"
 }
 
+# stat_statements.sh
+
 STAT_DBNAME='dbname1'
 test -z "$STAT_REPLICA_DSN" && STAT_REPLICA_DSN=
 test -z "$STAT_SNAPSHOT" && STAT_SNAPSHOT=false
@@ -116,6 +128,8 @@ test -z "$STAT_TILL" && STAT_TILL=$(date -I --date='+1 day')
 test -z "$STAT_N" && STAT_N=10
 test -z "$STAT_ORDER" && STAT_ORDER=0
 STAT_KEEP_SNAPSHOTS='7 days'
+
+# terminate_activity.sh
 
 TERMINATE_CONDITIONS=$(cat <<EOF
 state <> 'idle' AND -- Recommended due to a pg_stat_activity bug when
@@ -133,6 +147,8 @@ state <> 'idle' AND -- Recommended due to a pg_stat_activity bug when
 EOF
 )
 
+# process_until_0.sh
+
 test -z "$PROCESS_DBNAME" && PROCESS_DBNAME=
 
 LAG_DBNAME='dbname1'
@@ -141,7 +157,11 @@ LAG_RECEIVE=$((32 * 1024 * 1024))
 LAG_REPLAY=$((32 * 1024 * 1024))
 LAG_REPLAY_AGE='5 minutes'
 
+# refresh_matviews.sh
+
 test -z "$MATVIEWS_DBNAME" && MATVIEWS_DBNAME=
+
+# commit_schema.sh
 
 SCHEMA_DBNAME_LIST='dbname1 dbname2'
 SCHEMA_DIR='/mnt/archive/repo'
