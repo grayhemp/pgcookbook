@@ -43,7 +43,7 @@ Note that the script assumes that you have already
 [setup SSH without password](ssh_without_password_setup.md) between
 servers. If so then just run it on `host1` or put it in cron
 
-* * * * * bash pgcookbook/bin/ssh_tunnel.sh
+    * * * * * bash pgcookbook/bin/ssh_tunnel.sh
 
 and you will be able to communicate with the port 5432 on `host1` via
 the port 2345 on `host2` with transparent compression by secured line.
