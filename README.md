@@ -1,6 +1,6 @@
 # PgCookbook - a PostgreSQL documentation project
 
-The project is a constantly updated set of articles, scripts and
+The project is a continuously updating set of articles, scripts and
 configuration files made to help with PostgreSQL maintenance. The
 articles and files might be modified as new versions of software or
 new ways of doing things appear. Stay tuned.
@@ -30,9 +30,9 @@ new ways of doing things appear. Stay tuned.
 
 Thank you:
 
-- [Nitro Software, Inc.](http://www.nitropdf.com) for code
+- [Nitro Software, Inc.](http://www.nitropdf.com) for ideas and code
   contribution
 - [PostgreSQL-Consulting.com](http://www.postgresql-consulting.com)
   for lots of testing
-- [Maxim Boguk](mailto:maxim.boguk@gmail.com) for insights, useful
-  hints and supervising
+- [Maxim Boguk](mailto:maxim.boguk@gmail.com) for ideas and useful
+  hints
