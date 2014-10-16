@@ -44,7 +44,7 @@ This is the documentation string.
     not put dbname in the STAT_REPLICA_DSN it will be substituted as
     STAT_DBNAME, automatically. Compatible with PostgreSQL >=9.2.
 
-The configuration should be in the `config.sh` file under the `/bin`
+The configuration should be in the `config.sh` file under the `bin`
 directory. The script specific settings are explained below. For all
 the settings see [config.sh.example](bin/config.sh.example).
 

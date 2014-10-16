@@ -27,7 +27,7 @@ The documentation string.
     network failures it attempts to re-establish connection after
     TUNNEL_RETRY_DELAY.
 
-The configuration is expected to be in `config.sh` under the `/bin`
+The configuration is expected to be in `config.sh` under the `bin`
 directory. The script specific settings are shown below. For all the
 settings see [config.sh.example](bin/config.sh.example).
 
