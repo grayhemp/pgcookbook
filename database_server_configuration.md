@@ -243,7 +243,6 @@ shown below. Add them to `rc.local`. To find out device names use `ls
     echo noop > /sys/block/sdb/queue/scheduler
     echo 16384 > /sys/block/sdb/queue/read_ahead_kb
 
-
 Adjust your `/etc/fstab`. Set `noatime,nobarrier` to gain better
 performance for data partitions. Due to the known XFS allocation issue
 in some recent Linux kernels that leads to significant database bloats
