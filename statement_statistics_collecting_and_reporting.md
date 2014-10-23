@@ -61,11 +61,16 @@ To snapshot statistics every 10 minutes add the following entries to
 `crontab` on your master server for the master itself and for each
 replica you wish to monitor queries from.
 
-    */10 * * * * STAT_SNAPSHOT=true bash pgcookbook/bin/stat_statements.sh
+    MAILTO=dba@company.com,dev@company.com
+
+    */10 * * * * STAT_SNAPSHOT=true bash pgcookbook/bin/stat_statements.sh >> \
+                 /var/log/pgcookbook/stat_statements-snapshot-master.log
     */10 * * * * STAT_REPLICA_DSN='host=host2' STAT_SNAPSHOT=true \
-                 bash pgcookbook/bin/stat_statements.sh
+                 bash pgcookbook/bin/stat_statements.sh >> \
+                 /var/log/pgcookbook/stat_statements-snapshot-replica-host2.log
     */10 * * * * STAT_REPLICA_DSN='host=host3' STAT_SNAPSHOT=true \
-                 bash pgcookbook/bin/stat_statements.sh
+                 bash pgcookbook/bin/stat_statements.sh >> \
+                 /var/log/pgcookbook/stat_statements-snapshot-replica-host3.log
 
 After some amount of time and snapshots you will be able to request
 aggregated statistics for different periods. Note the values of
@@ -126,22 +131,34 @@ the example below.
 
     MAILTO=dba@company.com,dev@company.com
 
-    59 23 * * * STAT_ORDER=0 bash pgcookbook/bin/stat_statements.sh
-    59 23 * * * STAT_ORDER=1 bash pgcookbook/bin/stat_statements.sh
-    59 23 * * * STAT_ORDER=2 bash pgcookbook/bin/stat_statements.sh
+    59 23 * * * STAT_ORDER=0 bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-master-0.log
+    59 23 * * * STAT_ORDER=1 bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-master-1.log
+    59 23 * * * STAT_ORDER=2 bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-master-2.log
 
     59 23 * * * STAT_REPLICA_DSN='host=host2' STAT_ORDER=0 \
-                bash pgcookbook/bin/stat_statements.sh
+                bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-replica-0-host2.log
     59 23 * * * STAT_REPLICA_DSN='host=host2' STAT_ORDER=1 \
-                bash pgcookbook/bin/stat_statements.sh
+                bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-replica-1-host2.log
     59 23 * * * STAT_REPLICA_DSN='host=host2' STAT_ORDER=2 \
-                bash pgcookbook/bin/stat_statements.sh
+                bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-replica-2-host2.log
 
     59 23 * * * STAT_REPLICA_DSN='host=host3' STAT_ORDER=0 \
-                bash pgcookbook/bin/stat_statements.sh
+                bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-replica-0-host3.log
     59 23 * * * STAT_REPLICA_DSN='host=host3' STAT_ORDER=1 \
-                bash pgcookbook/bin/stat_statements.sh
+                bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-replica-1-host3.log
     59 23 * * * STAT_REPLICA_DSN='host=host3' STAT_ORDER=2 \
-                bash pgcookbook/bin/stat_statements.sh
+                bash pgcookbook/bin/stat_statements.sh >> \
+                /var/log/pgcookbook/stat_statements-report-replica-2-host3.log
+
+The script uses `STDERR` to report errors and warnings to, so you will
+get emails if something is wrong.
 
 [pg_stat_statements]: http://www.postgresql.org/docs/current/static/index.html
