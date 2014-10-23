@@ -50,6 +50,10 @@ in the configuration.
 
 Just adjust the settings, put it in your `crontab`
 
-    00 01 * * * bash pgcookbook/bin/manage_dumps.sh
+    MAILTO=dba@company.com,dev@company.com
 
-and it will do all the hard work.
+    00 01 * * * bash pgcookbook/bin/manage_dumps.sh >> \
+                /var/log/pgcookbook/manage_dumps.log
+
+and it will do all the hard work. The script uses `STDERR` to report
+errors and warnings to, so you will get emails if something is wrong.
