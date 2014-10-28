@@ -30,6 +30,8 @@ PSQL="/usr/bin/psql $DSN"
 PGDUMP="/usr/bin/pg_dump $DSN"
 PGRESTORE="/usr/bin/pg_restore $DSN"
 PGDUMPALL="/usr/bin/pg_dumpall $DSN"
+PGBASEBACKUP="/usr/bin/pg_basebackup $DSN"
+PGRECEIVEXLOG="/usr/bin/pg_receivexlog $DSN"
 RSYNC='/usr/bin/rsync -aq'
 SSH='/usr/bin/ssh'
 SSHADD='/usr/bin/ssh-add'
@@ -43,8 +45,10 @@ test -z "$TUNNEL_HOST_PORT" && TUNNEL_HOST_PORT=5432
 test -z "$TUNNEL_HOST" && TUNNEL_HOST='host2'
 TUNNEL_COMP_LEVEL=2
 TUNNEL_RETRY_DELAY=60
+test -z "$TUNNEL_LOCK" && \
+    TUNNEL_LOCK="$TUNNEL_PORT-$TUNNEL_HOST_PORT-$TUNNEL_HOST"
 test -z "$TUNNEL_LOCK_FILE" && \
-    TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_HOST.$TUNNEL_HOST_PORT"
+    TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_LOCK"
 
 # manage_dumps.sh
 
@@ -177,3 +181,20 @@ EOF
 )
 test -z "$SCHEMA_SSH_KEY" && SCHEMA_SSH_KEY=
 test -z "$SCHEMA_ACTION" && SCHEMA_ACTION=
+
+# manage_pitr.sh
+
+test -z "$PITR_WAL" && PITR_WAL=false
+PITR_LOCAL_DIR=
+PITR_ARCHIVE_DIR='/mnt/archive/pitr'
+PITR_WAL_ARCHIVE_DIR='/mnt/archive/wal'
+test -z "$PITR_WAL_RECEIVER_LOCK_FILE" && \
+    PITR_WAL_RECEIVER_LOCK_FILE='/tmp/wal_receiver.'$(
+        echo $PITR_WAL_ARCHIVE_DIR | sed 's/\//_/g'
+    )"-$HOST-$PORT-$USER"
+PITR_KEEP_BACKUPS=2
+
+test -z "$TUNNEL_LOCK" && \
+    TUNNEL_LOCK="$TUNNEL_PORT-$TUNNEL_HOST_PORT-$TUNNEL_HOST"
+test -z "$TUNNEL_LOCK_FILE" && \
+    TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_LOCK"
