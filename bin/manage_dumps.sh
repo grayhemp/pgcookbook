@@ -24,15 +24,18 @@ fi
 
 dump_dir=$(date +%Y%m%d)
 
+error=$(mkdir -p $DUMPS_ARCHIVE_DIR 2>&1) || \
+    die "Can not make archive directory: $error."
+
 error=$(mkdir -p $DUMPS_LOCAL_DIR/$dump_dir 2>&1) || \
-    die "Can not make $dump_dir dumps directory: $error."
+    die "Can not make $dump_dir dumps directory locally: $error."
 
 error=$($PGDUMPALL -g -f $DUMPS_LOCAL_DIR/$dump_dir/globals.sql 2>&1) || \
     die "Can not dump globals: $error."
 
 for dbname in $DUMPS_DBNAME_LIST; do
     error=$($PGDUMP -f $DUMPS_LOCAL_DIR/$dump_dir/$dbname.dump.gz \
-                     -F c -Z 2 $dbname 2>&1) || \
+                    -F c -Z 2 $dbname 2>&1) || \
         die "Can not dump database $dbname: $error."
 done
 
