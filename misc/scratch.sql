@@ -560,7 +560,7 @@ INSERT INTO t SELECT i FROM generate_series(1,1000000) as i;
 /*
 
 bash manage_pitr.sh
-mv /mnt/archive/20141028 /mnt/archive/20141026
+mv /mnt/archive/basebackups/20141028 /mnt/archive/basebackups/20141026
 
 */
 
@@ -569,7 +569,7 @@ INSERT INTO t SELECT i FROM generate_series(1,1000000) as i;
 /*
 
 bash manage_pitr.sh
-mv /mnt/archive/20141028 /mnt/archive/20141027
+mv /mnt/archive/basebackups/20141028 /mnt/archive/basebackups/20141027
 
 */
 

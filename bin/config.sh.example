@@ -155,6 +155,8 @@ EOF
 
 test -z "$PROCESS_DBNAME" && PROCESS_DBNAME=
 
+# replica_lag.sh
+
 LAG_DBNAME='dbname1'
 test -z "$LAG_DSN" && LAG_DSN=
 LAG_RECEIVE=$((32 * 1024 * 1024))
@@ -186,15 +188,10 @@ test -z "$SCHEMA_ACTION" && SCHEMA_ACTION=
 
 test -z "$PITR_WAL" && PITR_WAL=false
 PITR_LOCAL_DIR=
-PITR_ARCHIVE_DIR='/mnt/archive/pitr'
+PITR_ARCHIVE_DIR='/mnt/archive/basebackups'
 PITR_WAL_ARCHIVE_DIR='/mnt/archive/wal'
 test -z "$PITR_WAL_RECEIVER_LOCK_FILE" && \
     PITR_WAL_RECEIVER_LOCK_FILE='/tmp/wal_receiver.'$(
         echo $PITR_WAL_ARCHIVE_DIR | sed 's/\//_/g'
     )"-$HOST-$PORT-$USER"
 PITR_KEEP_BACKUPS=2
-
-test -z "$TUNNEL_LOCK" && \
-    TUNNEL_LOCK="$TUNNEL_PORT-$TUNNEL_HOST_PORT-$TUNNEL_HOST"
-test -z "$TUNNEL_LOCK_FILE" && \
-    TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_LOCK"
