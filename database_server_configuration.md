@@ -23,6 +23,13 @@ not, then install the packages and initialize a cluster. Also check
 and install all the needed satellite software, like replication
 systems and connection poolers.
 
+Linux kernel version notes:
+
+- if you are on the kernel 3.2, than it is worth to upgrade it due to
+  a significant read performance downgrade;
+- you should upgrade to 3.13 or a later version due to the IO issues
+  fixes dramatically improving IO consumption for reads.
+
 A lot of configuration parameters we are going set do will be in
 `sysctl.conf`. To not reboot the server, these settings can be set
 like it is shown below. You'll need `sudo` to do this.
