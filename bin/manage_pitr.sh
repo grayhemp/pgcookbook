@@ -27,6 +27,14 @@ if $PITR_WAL; then
 
     (
         flock -xn 544 || exit 0
+
+        # Originally it is a trap for the weired issue when flock
+        # refuses to work when archiving to NFS mount point and
+        # experiencing network problems
+        ps ax | grep pg_receivexlog | grep "$PITR_WAL_ARCHIVE_DIR" | \
+            grep -v grep >/dev/null && \
+            die "Problem with acquiring the lock."
+
         error=$($PGRECEIVEXLOG -n -D $PITR_WAL_ARCHIVE_DIR 2>&1) || \
             die "Problem occured during WAL archiving: $error."
     ) 544>$PITR_WAL_RECEIVER_LOCK_FILE
