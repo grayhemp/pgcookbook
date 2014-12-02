@@ -51,7 +51,7 @@ else
     error=$(mkdir -p $PITR_LOCAL_DIR/$backup_dir 2>&1) || \
         die "Can not make directory $backup_dir locally: $error."
 
-    error=$($PGBASEBACKUP -F t -Z 2 -c fast \
+    error=$($PGBASEBACKUP -F t -Z 2 -c fast -x \
                           -D $PITR_LOCAL_DIR/$backup_dir 2>&1) || \
         die "Can not make base backup: $error."
 
@@ -83,8 +83,8 @@ else
         die "Can not find the oldest base backup: $oldest."
 
     error=$( \
-        find $PITR_WAL_ARCHIVE_DIR -ignore_readdir_race -type f ! -cnewer \
-        $PITR_ARCHIVE_DIR/$oldest -delete 2>&1) || \
+        find $PITR_WAL_ARCHIVE_DIR -ignore_readdir_race -type f \
+        ! -name *.partial ! -cnewer $PITR_ARCHIVE_DIR/$oldest -delete 2>&1) || \
         die "Can not delete old WAL files from archive: $error."
 
     info "Obsolete WAL files have been cleaned."
