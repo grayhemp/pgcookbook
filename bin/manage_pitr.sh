@@ -47,7 +47,6 @@ if $PITR_WAL; then
 
         error=$($PGRECEIVEXLOG -n -D $PITR_WAL_ARCHIVE_DIR 2>&1) || \
             die "Problem occured during WAL archiving: $error."
-
     ) 544>$PITR_WAL_RECEIVER_LOCK_FILE
 else
     if [ -z "$PITR_LOCAL_DIR" ]; then
