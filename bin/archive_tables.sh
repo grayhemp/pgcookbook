@@ -20,13 +20,15 @@
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
-if [ -z $ARCHIVE_LOCAL_DIR ]; then
+if [ -z "$ARCHIVE_LOCAL_DIR" ]; then
     ARCHIVE_LOCAL_DIR=$ARCHIVE_ARCHIVE_DIR
 fi
 
+error=$(mkdir -p $ARCHIVE_ARCHIVE_DIR 2>&1) ||  \
+    die "Can not make archive directory $ARCHIVE_ARCHIVE_DIR: $error."
+
 for dbname in $ARCHIVE_DBNAME_LIST; do
-    part_list=$($PSQL -XAt -F '.' -c "$ARCHIVE_PARTS_SQL" \
-                $dbname 2>&1) || \
+    part_list=$($PSQL -XAt -F '.' -c "$ARCHIVE_PARTS_SQL" $dbname 2>&1) || \
         die "Can not get a partition list: $part_list."
 
     if [ -z "$part_list" ]; then
@@ -79,6 +81,8 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
                 die "Can sync directory $dbname to archive: $error."
             error=$(rm -rf $ARCHIVE_LOCAL_DIR/$dbname 2>&1) || \
                 die "Can not clean directory $dbname localy: $error."
+
+            info "Moved directory $dbname to archive."
         fi
     fi
 done

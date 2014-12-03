@@ -18,7 +18,12 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 (
-    flock -xn 543 || exit 0
+    flock -xn 543
+    if [ $? != 0 ]; then
+        info "Exiting due to another running instance."
+        exit 0
+    fi
+
     error=$(
         $SSH -R localhost:$TUNNEL_PORT:localhost:$TUNNEL_HOST_PORT \
             $TUNNEL_HOST -C -o ExitOnForwardFailure=yes \
@@ -26,4 +31,6 @@ source $(dirname $0)/utils.sh
             "while nc -zv localhost $TUNNEL_PORT; \
              do sleep $TUNNEL_RETRY_DELAY; done" 2>&1) || \
         die "Problem occured with SSH tunnel: $error."
+
+    info "SSH tunnel started."
 ) 543>$TUNNEL_LOCK_FILE

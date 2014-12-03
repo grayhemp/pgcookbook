@@ -26,7 +26,11 @@ if $PITR_WAL; then
         die "Can not make wal directory $PITR_WAL_ARCHIVE_DIR: $error."
 
     (
-        flock -xn 544 || exit 0
+        flock -xn 544
+        if [ $? != 0 ]; then
+            info "Exiting due to another running instance."
+            exit 0
+        fi
 
         # Originally it is a trap for the weired issue when flock
         # refuses to work when archiving to NFS mount point and
@@ -37,6 +41,8 @@ if $PITR_WAL; then
 
         error=$($PGRECEIVEXLOG -n -D $PITR_WAL_ARCHIVE_DIR 2>&1) || \
             die "Problem occured during WAL archiving: $error."
+
+        info "WAL streaming started."
     ) 544>$PITR_WAL_RECEIVER_LOCK_FILE
 else
     if [ -z "$PITR_LOCAL_DIR" ]; then

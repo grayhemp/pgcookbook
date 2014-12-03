@@ -23,7 +23,7 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 table_version=1
-function_version=2
+function_version=3
 
 sql=$(cat <<EOF
 DO \$do\$
@@ -172,13 +172,14 @@ BEGIN
             )
             SELECT INTO o_report string_agg(
                 format(
-                    E'Position: %s\n' ||
-                    E'Time: %s%%, %s ms, %s ms avg\n' ||
+                    E'position: %s\n' ||
+                    E'time: %s%%, %s ms, %s ms avg\n' ||
                     E'IO time: %s%% (%s%% rel), %s ms, %s ms avg\n' ||
-                    E'Calls: %s%%, %s\n' ||
-                    E'Rows: %s, %s avg\n' ||
-                    E'Users: %s\n'||
-                    E'Databases: %s\n\n%s',
+                    E'calls: %s%%, %s\n' ||
+                    E'rows: %s, %s avg\n' ||
+                    E'users: %s\n'||
+                    E'databases: %s\n' ||
+                    E'query: %s',
                     row_number, time_percent, time, time_avg, io_time_percent,
                     io_time_perc_rel, io_time, io_time_avg, calls_percent,
                     calls, rows, rows_avg, users, dbs, query),
@@ -258,16 +259,12 @@ EOF
 
     error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
         die "Can not get a snapshot: $error."
+
+    info "Snapshot has been made."
 else
     test $STAT_ORDER -eq 0 && order='time'
     test $STAT_ORDER -eq 1 && order='calls'
     test $STAT_ORDER -eq 2 && order='IO time'
-
-    if [ -z $STAT_REPLICA_DSN ]; then
-        info "Master report ordered by $order."
-    else
-        info "Replica report for '$STAT_REPLICA_DSN' ordered by $order."
-    fi
 
    sql=$(cat <<EOF
 SELECT public.stat_statements_get_report(
@@ -276,5 +273,10 @@ EOF
     )
     report=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
         die "Can not get a report: $report."
-    echo "$report"
+
+    if [ -z "$STAT_REPLICA_DSN" ]; then
+        info "Master report by $order:\n$report"
+    else
+        info "Replica report for '$STAT_REPLICA_DSN' by $order:\n$report"
+    fi
 fi

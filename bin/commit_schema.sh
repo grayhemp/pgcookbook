@@ -24,7 +24,7 @@ source $(dirname $0)/utils.sh
 test ! -z $SCHEMA_ACTION && ! contains "dump commit" $SCHEMA_ACTION  && \
     die "Wrong SCHEMA_ACTION '$SCHEMA_ACTION' is specified."
 
-if [ "$SCHEMA_ACTION" == 'dump' ] || [ -z "$A" ]; then
+if [ "$SCHEMA_ACTION" == 'dump' ] || [ -z "$SCHEMA_ACTION" ]; then
     error=$(mkdir -p $SCHEMA_DIR 2>&1) ||  \
         die "Can not make schema directory $SCHEMA_DIR: $error."
 
@@ -55,7 +55,7 @@ if [ "$SCHEMA_ACTION" == 'dump' ] || [ -z "$A" ]; then
                     -f $SCHEMA_DIR/$dbname.sql $dbname 2>&1) || \
             die "Can not dump database $dbname: $error."
 
-        info "Dumps has been created: $dbname."
+        info "Dump for $dbname has been created."
     done
 fi
 

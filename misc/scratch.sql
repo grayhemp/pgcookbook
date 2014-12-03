@@ -356,7 +356,8 @@ FROM filter;
 
 /*
 
-mkdir -p /tmp/storage/parts
+rm -r /mnt/archive/parts
+mkdir -p /mnt/archive/parts
 
 */
 
@@ -430,6 +431,7 @@ END $$;
 /*
 
 bash bin/archive_tables.sh
+ls -l /mnt/archive/parts
 
 */
 
@@ -525,7 +527,7 @@ git -C /mnt/archive/repo ci -m 'Initial commit.'
 git -C /mnt/archive/repo push origin master
 ssh-keygen -t rsa -f /tmp/_repo_id_rsa
 
-SCHEMA_SSH_KEY='/tmp/_repo_id_rsa' bash commit_schema.sh
+SCHEMA_SSH_KEY='/tmp/_repo_id_rsa' bash bin/commit_schema.sh
 
 */
 
@@ -535,22 +537,18 @@ CREATE SCHEMA schema2;
 
 /*
 
-bash commit_schema.sh
+bash bin/commit_schema.sh
 
 git -C /mnt/archive/repo log -p
 
 */
 
-\c dbname1
---
-DROP SCHEMA schema2;
-
 -- manage_pitr.sh
 
 /*
 
-PITR_WAL=true bash manage_pitr.sh
-PITR_WAL=true bash manage_pitr.sh # shouldn't start
+PITR_WAL=true bash bin/manage_pitr.sh
+PITR_WAL=true bash bin/manage_pitr.sh # shouldn't start
 
 */
 
@@ -559,7 +557,7 @@ INSERT INTO t SELECT i FROM generate_series(1,1000000) as i;
 
 /*
 
-bash manage_pitr.sh
+bash bin/manage_pitr.sh
 mv /mnt/archive/basebackups/20141028 /mnt/archive/basebackups/20141026
 
 */
@@ -568,7 +566,7 @@ INSERT INTO t SELECT i FROM generate_series(1,1000000) as i;
 
 /*
 
-bash manage_pitr.sh
+bash bin/manage_pitr.sh
 mv /mnt/archive/basebackups/20141028 /mnt/archive/basebackups/20141027
 
 */
@@ -577,7 +575,7 @@ INSERT INTO t SELECT i FROM generate_series(1,1000000) as i;
 
 /*
 
-bash manage_pitr.sh # should delete 20141026 and clean pre-20141027 WAL files
+bash bin/manage_pitr.sh # should delete 20141026 and clean pre-20141027 WAL
 
 */
 

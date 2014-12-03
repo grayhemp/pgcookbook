@@ -81,4 +81,6 @@ message=$(
 message=$(echo -e "$message" | sed '${/^$/d;}')
 
 test -z "$message" || \
-    die "Replication lag for '$LAG_DSN' was reported.\n$message"
+    die "Replication lag for '$LAG_DSN':\n$message"
+
+info "Replication lag doesn't exceed threasholds."
