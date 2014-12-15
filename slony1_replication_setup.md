@@ -122,7 +122,7 @@ Check whether all the necessary tables are added to the replication by
 
     psql -d billing -f get_not_in_slony_tables_and_sequences.sql
 
-Now initialize the replication on `host2` by creating a slave node
+Now initialize the replication on `host2` by creating a replica node
 with [store_node.slonik](slony/store_node.slonik). Skim the file
 before running the command.
 
@@ -139,8 +139,8 @@ with [subscribe_set.slonik](slony/subscribe_set.slonik).
 
     slonik subscribe_set.slonik
 
-At this moment carefully watch the logs. If you mixed up with master
-and slave you need to find it out as fast as possible to stop the
+At this moment carefully watch the logs. If you mixed up with origin
+and replica you need to find it out as fast as possible to stop the
 replication as it could damage the data.
 
 [1]: http://slony.info/documentation/2.1/security.html#SUPERUSER

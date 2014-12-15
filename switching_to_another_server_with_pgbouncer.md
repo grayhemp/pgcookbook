@@ -7,12 +7,12 @@ to switch servers as gently as possible and with minimum downtime.
 
 Imagine we have two database servers `host1` (192.168.0.1) and `host2`
 (192.168.0.2). A replication (streaming, Slony1, longiste, bucardo,
-etc.) is set up between these machines. `host1` is a master server and
-`host2` is a slave. All the clients are connecting to the databases
+etc.) is set up between these machines. `host1` is a origin server and
+`host2` is a replica. All the clients are connecting to the databases
 via pgbouncer instances working on both servers. Initially, each
 instance serving databases on a local machine.
 
-The goal is to switch the master role to `host2`.
+The goal is to switch the origin role to `host2`.
 
 The idea is to redirect all the queries from `host1` to `host2` by
 pgbouncer during the process of switching. The benefit of this
@@ -32,7 +32,7 @@ Note, if you are going to make your clients to connect to `host2`
 directly later, then make sure that both `pgbouncer.ini` and
 `userlist.txt` on `host2` are identical to `host1` ones. 
 
-Also make sure that there are no connections to the master (`host1`)
+Also make sure that there are no connections to the origin (`host1`)
 bypassing pgbouncer.
 
     SELECT client_addr, usename, datname, application_name, current_query 
@@ -41,7 +41,7 @@ bypassing pgbouncer.
 
 Keep in mind long transactions. If you have something like this in
 cron or anywhere else, turn it off on the time of the promotion. Check
-if there are any of them on the master.
+if there are any of them on the origin.
 
     SELECT now() - xact_start, procpid, current_query
     FROM pg_stat_activity 
@@ -57,7 +57,7 @@ off temporarily, probably by commenting out necessary entries in
 At this step you need to decide if it is necessary to start a service
 window or not. From the point of view of the technical side, it
 depends on the replication system you use. If it can promote your
-slave to master fast (in several seconds) then in many cases you do
+replica to origin fast (in several seconds) then in many cases you do
 not need the service window, otherwise, you do. If you have thousands
 client sessions per second, then most probably you need it. If your
 pgbouncer is in `session` pooling mode, then you need it either.
@@ -68,7 +68,7 @@ For londiste you can prepare a set of commands to unregister all the
 tables and sequences.
 
 For streaming replication run the `CHECKPOINT` command a couple of
-times on the slave one after another to reduce the checkpoint time
+times on the replica one after another to reduce the checkpoint time
 during the promotion. The time of the second run will give a hint of
 the approximate downtime.
 
@@ -81,11 +81,11 @@ Start the service window if it is needed.
 
 If your pgbouncer version is `<1.5.3` and your `pgboincer.ini`
 contains so called autodb entries (like `* =`), then you will need to
-restart the pgbouncer on the master (`host1`) to redirect clients.
+restart the pgbouncer on the origin (`host1`) to redirect clients.
 
     /etc/init.d/pgbouncer restart
 
-And then promote the slave (`host2`) as a new master with your
+And then promote the replica (`host2`) as a new origin with your
 replication tool.
 
 Otherwise, if pgbouncer `>=1.5.3`, you can do it a more gently and
@@ -108,7 +108,7 @@ process.
     SELECT pg_terminate_backend(pid) FROM pg_stat_activity
     WHERE now() - xact_start > '5 seconds';
 
-Then promote the slave (`host2`) as a master and remove the pause from
+Then promote the replica (`host2`) as a origin and remove the pause from
 pgbouncer.
 
     /etc/init.d/pgbouncer continue
@@ -118,9 +118,9 @@ instead of the command above if it is not supported by the package.
 
     psql -p 6432 -c 'RESUME;'
 
-Now clients queries are redirected to the new master (`host2`).
+Now clients queries are redirected to the new origin (`host2`).
 
-And then finally stop the `postgres` instance on the old master
+And then finally stop the `postgres` instance on the old origin
 (`host1`).
 
     /etc/init.d/postgresql stop
@@ -133,4 +133,4 @@ Now you can breathe out.
 Note, that if you want to turn the `host1` off you can forward all the
 traffic from clients to `host2` with DNS or IP aliasing. Another
 important moment is the necessity of pgbouncer restart when changing
-IP of the new master.
+IP of the new origin.
