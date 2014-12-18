@@ -7,16 +7,20 @@
 # Sergey Konoplev <gray.ru@gmail.com>
 
 function die() {
-    echo -e "$(date) ERROR $(basename $0): $1" 1>&2
+    echo -e "$(date) ERROR $(basename $0): $@" 1>&2
     exit 1
 }
 
+function warn() {
+    echo -e "$(date) WARNING $(basename $0): $@" 1>&2
+}
+
 function info() {
-    echo -e "$(date) INFO $(basename $0): $1"
+    echo -e "$(date) INFO $(basename $0): $@"
 }
 
 function progress() {
-    echo -ne "\r$(date) PROGRESS $(basename $0): $1"
+    echo -ne "\r$(date) PROGRESS $(basename $0): $@"
 }
 
 function readall() {

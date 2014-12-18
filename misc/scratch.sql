@@ -579,4 +579,12 @@ bash bin/manage_pitr.sh # should delete 20141026 and clean pre-20141027 WAL
 
 */
 
+-- measure_system.sh
+
+/*
+
+bash bin/measure_system.sh
+
+*/
+
 --
