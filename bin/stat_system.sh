@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# measure_system.sh - system statistics snapshoting script.
+# stat_system.sh - system statistics snapshoting script.
 #
 # Snapshots a variety of system statistics, like LA, CPU, memory, IO
 # and network using /proc. It autodetects partitions and network
@@ -13,7 +13,7 @@
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
-touch $MEASURE_SYSTEM_SNAP_FILE
+touch $STAT_SYSTEM_SNAP_FILE
 
 # load average 1, 5, 15
 
@@ -46,7 +46,7 @@ if [[ $src =~ $src_regex ]]; then
     src_other_list=${BASH_REMATCH[6]}
 
     snap_regex="(\S+) $src_regex"
-    snap=$(grep -E "$src_regex" $MEASURE_SYSTEM_SNAP_FILE)
+    snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
 
     if [[ $snap =~ $snap_regex ]]
     then
@@ -99,8 +99,8 @@ if [[ $src =~ $src_regex ]]; then
     fi
 
     error=$((
-        sed -i -r "/$snap_regex/d" $MEASURE_SYSTEM_SNAP_FILE && \
-        echo "$src_time $src" >> $MEASURE_SYSTEM_SNAP_FILE) 2>&1) ||
+        sed -i -r "/$snap_regex/d" $STAT_SYSTEM_SNAP_FILE && \
+        echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
         die "Can not save the CPU data snapshot: $error."
 else
     die "Can not match the CPU data."
@@ -162,7 +162,7 @@ if [[ $src =~ $src_regex ]]; then
     src_count=${BASH_REMATCH[1]}
 
     snap_regex="(\S+) $src_regex"
-    snap=$(grep -E "$src_regex" $MEASURE_SYSTEM_SNAP_FILE)
+    snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
 
     if [[ $snap =~ $snap_regex ]]
     then
@@ -177,8 +177,8 @@ if [[ $src =~ $src_regex ]]; then
     fi
 
     error=$((
-        sed -i -r "/${snap_regex}/d" $MEASURE_SYSTEM_SNAP_FILE && \
-        echo "$src_time $src" >> $MEASURE_SYSTEM_SNAP_FILE) 2>&1) ||
+        sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
+        echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
         die "Can not save the context switch snapshot: $error."
 else
     die "Can not match the context switch data."
@@ -196,7 +196,7 @@ if [[ $src =~ $src_regex ]]; then
     src_out=${BASH_REMATCH[2]}
 
     snap_regex="(\S+) $src_regex"
-    snap=$(grep -E "$src_regex" $MEASURE_SYSTEM_SNAP_FILE)
+    snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
 
     if [[ $snap =~ $snap_regex ]]
     then
@@ -215,8 +215,8 @@ if [[ $src =~ $src_regex ]]; then
     fi
 
     error=$((
-        sed -i -r "/${snap_regex}/d" $MEASURE_SYSTEM_SNAP_FILE && \
-        echo "$src_time $src" >> $MEASURE_SYSTEM_SNAP_FILE) 2>&1) ||
+        sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
+        echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
         die "Can not save the paging snapshot: $error."
 else
     die "Can not match the pages data."
@@ -234,7 +234,7 @@ if [[ $src =~ $src_regex ]]; then
     src_out=${BASH_REMATCH[2]}
 
     snap_regex="(\S+) $src_regex"
-    snap=$(grep -E "$src_regex" $MEASURE_SYSTEM_SNAP_FILE)
+    snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
 
     if [[ $snap =~ $snap_regex ]]
     then
@@ -253,8 +253,8 @@ if [[ $src =~ $src_regex ]]; then
     fi
 
     error=$((
-        sed -i -r "/${snap_regex}/d" $MEASURE_SYSTEM_SNAP_FILE && \
-        echo "$src_time $src" >> $MEASURE_SYSTEM_SNAP_FILE) 2>&1) ||
+        sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
+        echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
         die "Can not save the swap pages snapshot: $error."
 else
     die "Can not match the swap pages data."
@@ -293,7 +293,7 @@ for part in $part_list; do
         src_w_io_ms=${BASH_REMATCH[10]}
 
         snap_regex="(\S+) $src_regex"
-        snap=$(grep -E "$src_regex" $MEASURE_SYSTEM_SNAP_FILE)
+        snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
 
         if [[ $snap =~ $snap_regex ]]
         then
@@ -340,8 +340,8 @@ for part in $part_list; do
         fi
 
         error=$((
-            sed -i -r "/${snap_regex}/d" $MEASURE_SYSTEM_SNAP_FILE && \
-            echo "$src_time $src" >> $MEASURE_SYSTEM_SNAP_FILE) 2>&1) ||
+            sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
+            echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
             die "Can not save the disk snapshot for $part: $error."
     else
         die "Can not match the disk data for $part."
@@ -402,7 +402,7 @@ for iface in $iface_list; do
         src_errors_sent=${BASH_REMATCH[6]}
 
         snap_regex="(\S+) $src_regex"
-        snap=$(grep -E "$src_regex" $MEASURE_SYSTEM_SNAP_FILE)
+        snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
 
         if [[ $snap =~ $snap_regex ]]
         then
@@ -440,8 +440,8 @@ for iface in $iface_list; do
         fi
 
         error=$((
-            sed -i -r "/${snap_regex}/d" $MEASURE_SYSTEM_SNAP_FILE && \
-            echo "$src_time $src" >> $MEASURE_SYSTEM_SNAP_FILE) 2>&1) ||
+            sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
+            echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
             die "Can not save the network snapshot for $iface: $error."
     else
         die "Can not match the network data for $iface."

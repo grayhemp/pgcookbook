@@ -198,6 +198,6 @@ test -z "$PITR_WAL_RECEIVER_LOCK_FILE" && \
     )"-$HOST-$PORT-$USER"
 PITR_KEEP_BACKUPS=2
 
-# measure_system.sh
+# stat_system.sh
 
-MEASURE_SYSTEM_SNAP_FILE='/tmp/measure_system'
+STAT_SYSTEM_SNAP_FILE='/tmp/stat_system'
