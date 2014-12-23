@@ -4,7 +4,7 @@ CREATE TEMP SEQUENCE tab_seq;
 CREATE TEMP SEQUENCE seq_seq;
 
 SELECT
-    'set add table (set id = @main, origin = @master, id = ' ||
+    'set add table (set id = @main, origin = @origin, id = ' ||
     nextval('tab_seq') || ', fully qualified name = ''' || fullname || '''' ||
     (CASE WHEN has_pk THEN ');' ELSE ', key = ''' || uniq_index || ''');' END)
 FROM (
@@ -46,7 +46,7 @@ FROM (
 WHERE has_pk IS true OR uniq_index IS NOT NULL
 UNION ALL
 SELECT
-    'set add sequence (set id = @main, origin = @master, id = ' ||
+    'set add sequence (set id = @main, origin = @origin, id = ' ||
     nextval('seq_seq') || ', fully qualified name = '''||fullname||''');'
 FROM (
     SELECT n.nspname||'.'||c.relname AS fullname

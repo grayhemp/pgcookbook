@@ -26,7 +26,7 @@ separate table. This way we will be able to get the statistics for any
 period with 10 minutes granularity. [PgCookbook](README.md) has the
 [stat_statements.sh](bin/stat_statements.sh) script that automates all
 this functionality. It can even snapshot and save the snapshots from
-read-only replica servers on master with help of the `dblink`
+read-only replica servers on origin with help of the `dblink`
 extension, so you could easily track your replica trends either.
 
 This is the documentation string.
@@ -58,13 +58,13 @@ the settings see [config.sh.example](bin/config.sh.example).
     STAT_KEEP_SNAPSHOTS='7 days'
 
 To snapshot statistics every 10 minutes add the following entries to
-`crontab` on your master server for the master itself and for each
+`crontab` on your origin server for the origin itself and for each
 replica you wish to monitor queries from.
 
     MAILTO=dba@company.com,dev@company.com
 
     */10 * * * * STAT_SNAPSHOT=true bash pgcookbook/bin/stat_statements.sh >> \
-                 /var/log/pgcookbook/stat_statements-snapshot-master.log
+                 /var/log/pgcookbook/stat_statements-snapshot-origin.log
     */10 * * * * STAT_REPLICA_DSN='host=host2' STAT_SNAPSHOT=true \
                  bash pgcookbook/bin/stat_statements.sh >> \
                  /var/log/pgcookbook/stat_statements-snapshot-replica-host2.log
@@ -132,11 +132,11 @@ the example below.
     MAILTO=dba@company.com,dev@company.com
 
     59 23 * * * STAT_ORDER=0 bash pgcookbook/bin/stat_statements.sh >> \
-                /var/log/pgcookbook/stat_statements-report-master-0.log
+                /var/log/pgcookbook/stat_statements-report-origin-0.log
     59 23 * * * STAT_ORDER=1 bash pgcookbook/bin/stat_statements.sh >> \
-                /var/log/pgcookbook/stat_statements-report-master-1.log
+                /var/log/pgcookbook/stat_statements-report-origin-1.log
     59 23 * * * STAT_ORDER=2 bash pgcookbook/bin/stat_statements.sh >> \
-                /var/log/pgcookbook/stat_statements-report-master-2.log
+                /var/log/pgcookbook/stat_statements-report-origin-2.log
 
     59 23 * * * STAT_REPLICA_DSN='host=host2' STAT_ORDER=0 \
                 bash pgcookbook/bin/stat_statements.sh >> \

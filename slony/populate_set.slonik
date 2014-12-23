@@ -1,4 +1,4 @@
 include <config_cluster.slonik>;
 
-set add table (set id = @main, origin = @master, id = 1, fully qualified name = 'table1');
-set add sequence (set id = @main, origin = @master, id = 2, fully qualified name = 'table1_id_seq');
+set add table (set id = @main, origin = @origin, id = 1, fully qualified name = 'table1');
+set add sequence (set id = @main, origin = @origin, id = 2, fully qualified name = 'table1_id_seq');

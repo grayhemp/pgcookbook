@@ -264,7 +264,7 @@ else
     test $STAT_ORDER -eq 2 && order='IO time'
 
     if [ -z $STAT_REPLICA_DSN ]; then
-        info "Master report ordered by $order."
+        info "Origin report ordered by $order."
     else
         info "Replica report for '$STAT_REPLICA_DSN' ordered by $order."
     fi
