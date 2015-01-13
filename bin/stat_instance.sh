@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# stat_postgres.sh - postgres statistics collecting script.
+# stat_instance.sh - postgres instance statistics collecting script.
 #
 # Collects a variety of postgres related statistics. Compatible with
 # PostgreSQL >=9.2.
@@ -12,7 +12,7 @@
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
-touch $STAT_POSTGRES_FILE
+touch $STAT_INSTANCE_FILE
 
 # instance responds value
 
@@ -179,7 +179,7 @@ EOF
     src_tup_updated=${BASH_REMATCH[12]}
     src_tup_deleted=${BASH_REMATCH[13]}
 
-    snap=$(grep -E "$regex" $STAT_POSTGRES_FILE)
+    snap=$(grep -E "$regex" $STAT_INSTANCE_FILE)
 
     if [[ $snap =~ $regex ]]; then
         snap_time=${BASH_REMATCH[1]}
@@ -234,8 +234,8 @@ EOF
     fi
 
     error=$((
-        sed -i -r "/$regex/d" $STAT_POSTGRES_FILE && \
-        echo "$src" >> $STAT_POSTGRES_FILE) 2>&1) ||
+        sed -i -r "/$regex/d" $STAT_INSTANCE_FILE && \
+        echo "$src" >> $STAT_INSTANCE_FILE) 2>&1) ||
         die "Can not save the database stat snapshot: $error."
 )
 
@@ -316,7 +316,7 @@ EOF
     src_maxw=${BASH_REMATCH[8]}
     src_back_fsync=${BASH_REMATCH[9]}
 
-    snap=$(grep -E "$regex" $STAT_POSTGRES_FILE)
+    snap=$(grep -E "$regex" $STAT_INSTANCE_FILE)
 
     if [[ $snap =~ $regex ]]; then
         snap_chk_timed=${BASH_REMATCH[1]}
@@ -352,8 +352,8 @@ EOF
     fi
 
     error=$((
-        sed -i -r "/$regex/d" $STAT_POSTGRES_FILE && \
-        echo "$src" >> $STAT_POSTGRES_FILE) 2>&1) ||
+        sed -i -r "/$regex/d" $STAT_INSTANCE_FILE && \
+        echo "$src" >> $STAT_INSTANCE_FILE) 2>&1) ||
         die "Can not save the bgwritter snapshot: $error."
 )
 
@@ -417,7 +417,7 @@ EOF
     src_bufferpin=${BASH_REMATCH[4]}
     src_deadlock=${BASH_REMATCH[5]}
 
-    snap=$(grep -E "$regex" $STAT_POSTGRES_FILE)
+    snap=$(grep -E "$regex" $STAT_INSTANCE_FILE)
 
     if [[ $snap =~ $regex ]]; then
         snap_tablespace=${BASH_REMATCH[1]}
@@ -440,8 +440,8 @@ EOF
     fi
 
     error=$((
-        sed -i -r "/$regex/d" $STAT_POSTGRES_FILE && \
-        echo "$src" >> $STAT_POSTGRES_FILE) 2>&1) ||
+        sed -i -r "/$regex/d" $STAT_INSTANCE_FILE && \
+        echo "$src" >> $STAT_INSTANCE_FILE) 2>&1) ||
         die "Can not save the database conflicts stat snapshot: $error."
 )
 
@@ -511,7 +511,7 @@ EOF
              "$src_n_tup_upd $n_dead_tup $n_live_tup $src_vacuum_count" \
              "$src_analyze_count $src_autovacuum_count $src_autoanalyze_count")
 
-    snap=$(grep -E "$regex" $STAT_POSTGRES_FILE)
+    snap=$(grep -E "$regex" $STAT_INSTANCE_FILE)
 
     if [[ $snap =~ $regex ]]; then
         snap_seq_scan=${BASH_REMATCH[1]}
@@ -558,7 +558,7 @@ EOF
     fi
 
     error=$((
-        sed -i -r "/$regex/d" $STAT_POSTGRES_FILE && \
-        echo "$src" >> $STAT_POSTGRES_FILE) 2>&1) ||
+        sed -i -r "/$regex/d" $STAT_INSTANCE_FILE && \
+        echo "$src" >> $STAT_INSTANCE_FILE) 2>&1) ||
         die "Can not save the all tables stat snapshot: $error."
 )

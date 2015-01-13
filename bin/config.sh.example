@@ -204,4 +204,4 @@ STAT_SYSTEM_FILE='/tmp/stat_system'
 
 # stat_postgres.sh
 
-STAT_POSTGRES_FILE='/tmp/stat_postgres'
+STAT_INSTANCE_FILE='/tmp/stat_instance'
