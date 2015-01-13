@@ -1,10 +1,9 @@
 #!/bin/bash
 
-# stat_system.sh - system statistics snapshoting script.
+# stat_system.sh - system statistics collecting script.
 #
-# Snapshots a variety of system statistics, like LA, CPU, memory, IO
-# and network using /proc. It autodetects partitions and network
-# interfaces.
+# Collects a variety of system statistics from /proc, autodetects
+# partitions and network interfaces.
 #
 # Copyright (c) 2014 Sergey Konoplev
 #
@@ -13,43 +12,44 @@
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
-touch $STAT_SYSTEM_SNAP_FILE
+touch $STAT_SYSTEM_FILE
 
 # load average 1, 5, 15
 
-src_regex='^(\S+) (\S+) (\S+)'
-src=$(cat /proc/loadavg 2>&1) || die "Can not get a load average data: $src."
+(
+    regex='^(\S+) (\S+) (\S+)'
+    src=$(cat /proc/loadavg 2>&1) ||
+        die "Can not get a load average data: $src."
 
-if [[ $src =~ $src_regex ]]; then
-    src_1min=${BASH_REMATCH[1]}
-    src_5min=${BASH_REMATCH[2]}
-    src_15min=${BASH_REMATCH[3]}
+    [[ $src =~ $regex ]] || die "Can not match the load average data: $src."
 
-    info "Load average: $src_1min 1min, $src_5min 5min, $src_15min 15min."
-else
-    die "Can not match the load average data."
-fi
+    _1min=${BASH_REMATCH[1]}
+    _5min=${BASH_REMATCH[2]}
+    _15min=${BASH_REMATCH[3]}
+
+    info "Load average: $_1min 1min, $_5min 5min, $_15min 15min."
+)
 
 # CPU user, nice, system, idle, iowait, other
 
-src_regex='cpu  (\S+) (\S+) (\S+) (\S+) (\S+) (.+)'
-src=$(grep -E "$src_regex" /proc/stat 2>&1) ||
-    die "Can not get a CPU data: $src."
-src_time=$(date +%s)
+(
+    regex='(\S*) *cpu +(\S+) (\S+) (\S+) (\S+) (\S+) (.+)'
+    src=$(date +%s)' '$(grep -E "$regex" /proc/stat 2>&1) ||
+        die "Can not get a CPU data: $src."
 
-if [[ $src =~ $src_regex ]]; then
-    src_user=${BASH_REMATCH[1]}
-    src_nice=${BASH_REMATCH[2]}
-    src_system=${BASH_REMATCH[3]}
-    src_idle=${BASH_REMATCH[4]}
-    src_iowait=${BASH_REMATCH[5]}
-    src_other_list=${BASH_REMATCH[6]}
+    [[ $src =~ $regex ]] || die "Can not match the CPU data: $src."
 
-    snap_regex="(\S+) $src_regex"
-    snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
+    src_time=${BASH_REMATCH[1]}
+    src_user=${BASH_REMATCH[2]}
+    src_nice=${BASH_REMATCH[3]}
+    src_system=${BASH_REMATCH[4]}
+    src_idle=${BASH_REMATCH[5]}
+    src_iowait=${BASH_REMATCH[6]}
+    src_other_list=${BASH_REMATCH[7]}
 
-    if [[ $snap =~ $snap_regex ]]
-    then
+    snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+
+    if [[ $snap =~ $regex ]]; then
         snap_time=${BASH_REMATCH[1]}
         snap_user=${BASH_REMATCH[2]}
         snap_nice=${BASH_REMATCH[3]}
@@ -99,72 +99,67 @@ if [[ $src =~ $src_regex ]]; then
     fi
 
     error=$((
-        sed -i -r "/$snap_regex/d" $STAT_SYSTEM_SNAP_FILE && \
-        echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
+        sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
+        echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
         die "Can not save the CPU data snapshot: $error."
-else
-    die "Can not match the CPU data."
-fi
+)
 
 # memory total, used, free, buffers, cached
 # See http://momjian.us/main/blogs/pgblog/2012.html#May_2_2012
 
-src_regex='MemTotal: (\S+) kB MemFree: (\S+) kB Buffers: (\S+) kB Cached: (\S+)'
-src=$(
-    echo $(grep -E '^(Mem(Total|Free)|Buffers|Cached):' /proc/meminfo) 2>&1) ||
-    die "Can not get a memory data: $src."
+(
+    regex='MemTotal: (\S+) kB MemFree: (\S+) kB Buffers: (\S+) kB Cached: (\S+)'
+    src=$(
+        echo $(grep -E '^(Mem(Total|Free)|Buffers|Cached):' /proc/meminfo) \
+        2>&1) ||
+        die "Can not get a memory data: $src."
 
-if [[ $src =~ $src_regex ]]; then
-    src_total=${BASH_REMATCH[1]}
-    src_free=${BASH_REMATCH[2]}
-    src_buffers=${BASH_REMATCH[3]}
-    src_cached=${BASH_REMATCH[4]}
+    [[ $src =~ $regex ]] || die "Can not match the memory data: $src."
 
-    total=$(( $src_total ))
-    free=$(( $src_free ))
-    used=$(( ($src_total - $src_free - $src_buffers - $src_cached) ))
-    buffers=$(( $src_buffers ))
-    cached=$(( $src_cached ))
+    total=${BASH_REMATCH[1]}
+    free=${BASH_REMATCH[2]}
+    buffers=${BASH_REMATCH[3]}
+    cached=${BASH_REMATCH[4]}
+
+    used=$(( ($total - $free - $buffers - $cached) ))
 
     info "Memory, kB: $total total, $used used, $free free," \
          "$buffers buffers, $cached cached."
-else
-    die "Can not match the memory data."
-fi
+)
 
 # swap total, used, free
 
-src_regex='SwapTotal: (\S+) kB SwapFree: (\S+)'
-src=$(echo $(grep -E '^Swap(Total|Free):' /proc/meminfo) 2>&1) ||
-    die "Can not get a swap data: $src."
+(
+    regex='SwapTotal: (\S+) kB SwapFree: (\S+)'
+    src=$(echo $(grep -E '^Swap(Total|Free):' /proc/meminfo) 2>&1) ||
+        die "Can not get a swap data: $src."
 
-if [[ $src =~ $src_regex ]]; then
-    src_total=${BASH_REMATCH[1]}
-    src_free=${BASH_REMATCH[2]}
+    [[ $src =~ $regex ]] || die "Can not match the swap data: $src."
 
-    total=$(( $src_total ))
-    free=$(( $src_free ))
-    used=$(( $src_total - $src_free ))
+    total=${BASH_REMATCH[1]}
+    free=${BASH_REMATCH[2]}
+
+    used=$(( $total - $free ))
 
     info "Swap, kB: $total total, $used used, $free free."
-else
-    die "Can not match the swap data."
-fi
+)
 
 # context switch count
 
-src_regex='ctxt (\S+)'
-src=$(grep -E "$src_regex" /proc/stat 2>&1) ||
-    die "Can not get a context switch data: $src."
-src_time=$(date +%s)
+(
+    regex='(\S*) *ctxt (\S+)'
+    src=$(date +%s)' '$(grep -E "$regex" /proc/stat 2>&1) ||
+        die "Can not get a context switch data: $src."
 
-if [[ $src =~ $src_regex ]]; then
-    src_count=${BASH_REMATCH[1]}
+    [[ $src =~ $regex ]] ||
+        die "Can not match the context switch data: $src."
 
-    snap_regex="(\S+) $src_regex"
-    snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
+    src_time=${BASH_REMATCH[1]}
+    src_count=${BASH_REMATCH[2]}
 
-    if [[ $snap =~ $snap_regex ]]
+    snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+
+    if [[ $snap =~ $regex ]]
     then
         snap_time=${BASH_REMATCH[1]}
         snap_count=${BASH_REMATCH[2]}
@@ -177,28 +172,27 @@ if [[ $src =~ $src_regex ]]; then
     fi
 
     error=$((
-        sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
-        echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
+        sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
+        echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
         die "Can not save the context switch snapshot: $error."
-else
-    die "Can not match the context switch data."
-fi
+)
 
 # pages in, out
 
-src_regex='pgpgin (\S+) pgpgout (\S+)'
-src=$(echo $(grep -E '^pgpg(in|out) ' /proc/vmstat) 2>&1) ||
-    die "Can not get a pages data: $src."
-src_time=$(date +%s)
+(
+    regex='(\S*) *pgpgin (\S+) pgpgout (\S+)'
+    src=$(date +%s)' '$(echo $(grep -E '^pgpg(in|out) ' /proc/vmstat) 2>&1) ||
+        die "Can not get a pages data: $src."
 
-if [[ $src =~ $src_regex ]]; then
-    src_in=${BASH_REMATCH[1]}
-    src_out=${BASH_REMATCH[2]}
+    [[ $src =~ $regex ]] || die "Can not match the pages data: $src."
 
-    snap_regex="(\S+) $src_regex"
-    snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
+    src_time=${BASH_REMATCH[1]}
+    src_in=${BASH_REMATCH[2]}
+    src_out=${BASH_REMATCH[3]}
 
-    if [[ $snap =~ $snap_regex ]]
+    snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+
+    if [[ $snap =~ $regex ]]
     then
         snap_time=${BASH_REMATCH[1]}
         snap_in=${BASH_REMATCH[2]}
@@ -215,28 +209,27 @@ if [[ $src =~ $src_regex ]]; then
     fi
 
     error=$((
-        sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
-        echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
+        sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
+        echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
         die "Can not save the paging snapshot: $error."
-else
-    die "Can not match the pages data."
-fi
+)
 
 # swap pages in, out
 
-src_regex='pswpin (\S+) pswpout (\S+)'
-src=$(echo $(grep -E '^pswp(in|out) ' /proc/vmstat) 2>&1) ||
-    die "Can not get a swap pages data: $src."
-src_time=$(date +%s)
+(
+    regex='(\S*) *pswpin (\S+) pswpout (\S+)'
+    src=$(date +%s)' '$(echo $(grep -E '^pswp(in|out) ' /proc/vmstat) 2>&1) ||
+        die "Can not get a swap pages data: $src."
 
-if [[ $src =~ $src_regex ]]; then
-    src_in=${BASH_REMATCH[1]}
-    src_out=${BASH_REMATCH[2]}
+    [[ $src =~ $src_regex ]] || die "Can not match the swap pages data: $src."
 
-    snap_regex="(\S+) $src_regex"
-    snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
+    src_time=${BASH_REMATCH[1]}
+    src_in=${BASH_REMATCH[2]}
+    src_out=${BASH_REMATCH[3]}
 
-    if [[ $snap =~ $snap_regex ]]
+    snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+
+    if [[ $snap =~ $regex ]]
     then
         snap_time=${BASH_REMATCH[1]}
         snap_in=${BASH_REMATCH[2]}
@@ -253,12 +246,10 @@ if [[ $src =~ $src_regex ]]; then
     fi
 
     error=$((
-        sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
-        echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
+        sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
+        echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
         die "Can not save the swap pages snapshot: $error."
-else
-    die "Can not match the swap pages data."
-fi
+)
 
 # Processing partition stats
 
@@ -273,30 +264,30 @@ for part in $part_list; do
     # https://www.kernel.org/doc/Documentation/iostats.txt
     # https://www.kernel.org/doc/Documentation/block/stat.txt
 
-    src_regex=" *\S+ \S+ $part (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) \S+ (\S+) (\S+)$"
-    src=$((
-        grep -E " $part " /proc/diskstats | sed -r 's/\s+/ /g' | \
-        sed -r 's/^ //g') 2>&1) ||
-        die "Can not get a disk data for $part: $src."
-    src_time=$(date +%s)
+    (
+        regex="(\S*) *\S+ \S+ $part (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) \S+ (\S+) (\S+)$"
+        src=$(grep -E " $part " /proc/diskstats 2>&1) ||
+            die "Can not get a disk data for $part: $src."
+        src=$(date +%s)' '$(echo $src | sed -r 's/\s+/ /g' | sed -r 's/^ //g')
 
-    if [[ $src =~ $src_regex ]]; then
-        src_read=${BASH_REMATCH[1]}
-        src_read_merged=${BASH_REMATCH[2]}
-        src_read_sectors=${BASH_REMATCH[3]}
-        src_read_ms=${BASH_REMATCH[4]}
-        src_write=${BASH_REMATCH[5]}
-        src_write_merged=${BASH_REMATCH[6]}
-        src_write_sectors=${BASH_REMATCH[7]}
-        src_write_ms=${BASH_REMATCH[8]}
-        src_io_ms=${BASH_REMATCH[9]}
-        src_w_io_ms=${BASH_REMATCH[10]}
+        [[ $src =~ $regex ]] ||
+            die "Can not match the disk data for $part: $src."
 
-        snap_regex="(\S+) $src_regex"
-        snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
+        src_time=${BASH_REMATCH[1]}
+        src_read=${BASH_REMATCH[2]}
+        src_read_merged=${BASH_REMATCH[3]}
+        src_read_sectors=${BASH_REMATCH[4]}
+        src_read_ms=${BASH_REMATCH[5]}
+        src_write=${BASH_REMATCH[6]}
+        src_write_merged=${BASH_REMATCH[7]}
+        src_write_sectors=${BASH_REMATCH[8]}
+        src_write_ms=${BASH_REMATCH[9]}
+        src_io_ms=${BASH_REMATCH[10]}
+        src_w_io_ms=${BASH_REMATCH[11]}
 
-        if [[ $snap =~ $snap_regex ]]
-        then
+        snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+
+        if [[ $snap =~ $regex ]]; then
             snap_time=${BASH_REMATCH[1]}
             snap_read=${BASH_REMATCH[2]}
             snap_read_merged=${BASH_REMATCH[3]}
@@ -340,26 +331,25 @@ for part in $part_list; do
         fi
 
         error=$((
-            sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
-            echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
+            sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
+            echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
             die "Can not save the disk snapshot for $part: $error."
-    else
-        die "Can not match the disk data for $part."
-    fi
+    )
 
     # disk space
 
     if [ -z $(grep $part /proc/swaps | cut -d ' ' -f 1) ]; then
-        src_regex="$part (\S+) (\S+) (\S+) (\S+) (\S+)$"
-        src=$((
-            df | sed -r 's/\s+/ /g' | grep -E "$part " | \
-            xargs -l bash -c "$( \
-                echo 'echo $(ls -l $0 | sed -r 's/.* //' 2>/dev/null ||' \
-                     'echo $0) $1 $2 $3 $4 $5 $6')"
-            ) 2>&1) ||
-            die "Can not get a disk space data for $part: $src."
+        (
+            regex="$part (\S+) (\S+) (\S+) (\S+) (\S+)$"
+            src=$(
+                df 2>/dev/null | sed -r 's/\s+/ /g' | grep -E "$part " | \
+                xargs -l bash -c "$( \
+                    echo 'echo $(ls -l $0 | sed -r 's/.* //' 2>/dev/null ||' \
+                         'echo $0) $1 $2 $3 $4 $5 $6')")
 
-        if [[ $src =~ $src_regex ]]; then
+            [[ $src =~ $regex ]] ||
+                die "Can not match the disk space data for $part: $src."
+
             src_total=${BASH_REMATCH[1]}
             src_used=${BASH_REMATCH[2]}
             src_available=${BASH_REMATCH[3]}
@@ -369,9 +359,7 @@ for part in $part_list; do
             info "Disk space for $part $src_path, kB:" \
                  "$src_total total, $src_used used, $src_available available," \
                  "$src_percent."
-        else
-            die "Can not match the disk space data for $part."
-        fi
+        )
     fi
 done
 
@@ -386,26 +374,25 @@ iface_list=$(echo $(
 # network errors
 
 for iface in $iface_list; do
-    src_regex="$iface: (\S+) (\S+) (\S+) \S+ \S+ \S+ \S+ \S+ (\S+) (\S+) (\S+) "
-    src=$((
-        cat /proc/net/dev | sed -r 's/\s+/ /g' | sed -r 's/^ //g' | \
-        grep -E "$src_regex" ) 2>&1) ||
-        die "Can not get a network data for $iface: $src."
-    src_time=$(date +%s)
+    (
+        regex="(\S*) *$iface: (\S+) (\S+) (\S+) \S+ \S+ \S+ \S+ \S+ (\S+) (\S+) (\S+)"
+        src=$(grep "$iface: " /proc/net/dev 2>&1) ||
+            die "Can not get a network data for $iface: $src."
+        src=$(date +%s)' '$(echo $src | sed -r 's/\s+/ /g' | sed -r 's/^ //g')
 
-    if [[ $src =~ $src_regex ]]; then
-        src_bytes_received=${BASH_REMATCH[1]}
-        src_packets_received=${BASH_REMATCH[2]}
-        src_errors_received=${BASH_REMATCH[3]}
-        src_bytes_sent=${BASH_REMATCH[4]}
-        src_packets_sent=${BASH_REMATCH[5]}
-        src_errors_sent=${BASH_REMATCH[6]}
+        [[ $src =~ $regex ]] || die "Can not match the network data for $iface."
 
-        snap_regex="(\S+) $src_regex"
-        snap=$(grep -E "$src_regex" $STAT_SYSTEM_SNAP_FILE)
+        src_time=${BASH_REMATCH[1]}
+        src_bytes_received=${BASH_REMATCH[2]}
+        src_packets_received=${BASH_REMATCH[3]}
+        src_errors_received=${BASH_REMATCH[4]}
+        src_bytes_sent=${BASH_REMATCH[5]}
+        src_packets_sent=${BASH_REMATCH[6]}
+        src_errors_sent=${BASH_REMATCH[7]}
 
-        if [[ $snap =~ $snap_regex ]]
-        then
+        snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+
+        if [[ $snap =~ $regex ]]; then
             snap_time=${BASH_REMATCH[1]}
             snap_bytes_received=${BASH_REMATCH[2]}
             snap_packets_received=${BASH_REMATCH[3]}
@@ -440,10 +427,8 @@ for iface in $iface_list; do
         fi
 
         error=$((
-            sed -i -r "/${snap_regex}/d" $STAT_SYSTEM_SNAP_FILE && \
-            echo "$src_time $src" >> $STAT_SYSTEM_SNAP_FILE) 2>&1) ||
+            sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
+            echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
             die "Can not save the network snapshot for $iface: $error."
-    else
-        die "Can not match the network data for $iface."
-    fi
+    )
 done
