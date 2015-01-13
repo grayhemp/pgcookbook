@@ -579,12 +579,24 @@ bash bin/manage_pitr.sh # should delete 20141026 and clean pre-20141027 WAL
 
 */
 
--- stat_system.sh
+-- stat_postgres.sh
 
-/*
+WITH c AS (
+    SELECT array[
+        'active', 'idle', 'fastpath function call', 'disabled',
+        'idle in transaction', 'idle in transaction (aborted)', 'unknown'
+    ] AS state_list
+)
+SELECT listed_state, sum((pid IS NOT NULL)::integer), max(now() - xact_start)
+FROM c CROSS JOIN unnest(c.state_list) AS listed_state
+LEFT JOIN pg_stat_activity AS p ON
+    state = listed_state OR
+    listed_state = 'unknown' AND state <> all(state_list)
+GROUP BY 1 ORDER BY 1;
 
-bash bin/stat_system.sh
-
-*/
+SELECT
+    extract(epoch from now())::integer AS " ",
+    count(deadlocks) as deadlock_number
+FROM pg_stat_database;
 
 --

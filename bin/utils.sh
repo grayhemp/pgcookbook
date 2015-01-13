@@ -15,6 +15,10 @@ function warn() {
     echo -e "$(date) WARNING $(basename $0): $@" 1>&2
 }
 
+function note() {
+    echo -e "$(date) NOTICE $(basename $0): $@"
+}
+
 function info() {
     echo -e "$(date) INFO $(basename $0): $@"
 }

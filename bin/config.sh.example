@@ -200,4 +200,8 @@ PITR_KEEP_BACKUPS=2
 
 # stat_system.sh
 
-STAT_SYSTEM_SNAP_FILE='/tmp/stat_system'
+STAT_SYSTEM_FILE='/tmp/stat_system'
+
+# stat_postgres.sh
+
+STAT_POSTGRES_FILE='/tmp/stat_postgres'
