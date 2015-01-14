@@ -27,7 +27,7 @@ touch $STAT_SYSTEM_FILE
     _5min=${BASH_REMATCH[2]}
     _15min=${BASH_REMATCH[3]}
 
-    info "Load average: $_1min 1min, $_5min 5min, $_15min 15min."
+    info "Load average: 1min $_1min, 5min $_5min, 15min $_15min."
 )
 
 # CPU user, nice, system, idle, iowait, other
@@ -92,8 +92,8 @@ touch $STAT_SYSTEM_FILE
         other=$(echo "scale=1; 100 * $other_int / $total_int" | \
                  bc | awk '{printf "%.1f", $0}')
 
-        info "CPU, usage %: $user user, $nice nice, $system system," \
-             "$idle idle, $iowait iowait, $other other."
+        info "CPU usage, %: user $user, nice $nice, system $system," \
+             "idle $idle, iowait $iowait, other $other."
     else
         warn "No previous CPU record in the snapshot file."
     fi
@@ -123,8 +123,8 @@ touch $STAT_SYSTEM_FILE
 
     used=$(( ($total - $free - $buffers - $cached) ))
 
-    info "Memory, kB: $total total, $used used, $free free," \
-         "$buffers buffers, $cached cached."
+    info "Memory size, kB: total $total, used $used, free $free," \
+         "buffers $buffers, cached $cached."
 )
 
 # swap total, used, free
@@ -141,7 +141,7 @@ touch $STAT_SYSTEM_FILE
 
     used=$(( $total - $free ))
 
-    info "Swap, kB: $total total, $used used, $free free."
+    info "Swap size, kB: total $total, used $used, free $free."
 )
 
 # context switch count
@@ -166,7 +166,7 @@ touch $STAT_SYSTEM_FILE
 
         count_s=$(( ($src_count - $snap_count) / ($src_time - $snap_time) ))
 
-        info "Context switch, /s: $count_s."
+        info "Context switch, /s: count $count_s."
     else
         warn "No previous context switch record in the snapshot file."
     fi
@@ -203,7 +203,7 @@ touch $STAT_SYSTEM_FILE
         in_s=$(( ($src_in - $snap_in) / $interval ))
         out_s=$(( ($src_out - $snap_out) / $interval ))
 
-        info "Pages, /s: $in_s in, $out_s out."
+        info "Pages count, /s: in $in_s, out $out_s."
     else
         warn "No previous pages record in the snapshot file."
     fi
@@ -240,7 +240,7 @@ touch $STAT_SYSTEM_FILE
         in_s=$(( ($src_in - $snap_in) / $interval ))
         out_s=$(( ($src_out - $snap_out) / $interval ))
 
-        info "Swap pages, /s: $in_s in, $out_s out."
+        info "Swap pages count, /s: in $in_s, out $out_s."
     else
         warn "No previous swap pages record in the snapshot file."
     fi
@@ -318,14 +318,14 @@ for part in $part_list; do
             w_io_ms_s=$(( ($src_w_io_ms - $snap_w_io_ms) / $interval ))
 
             info "Disk IO count for $part, /s:" \
-                 "$read_s read, $read_merged_s read merged," \
-                 "$write_s write, $write_merged_s write merged."
+                 "read $read_s, read merged $read_merged_s," \
+                 "write $write_s, write merged $write_merged_s."
             info "Disk IO size for $part, kB/s:" \
-                 "$read_sectors_s read, $write_sectors_s write."
+                 "read $read_sectors_s, write $write_sectors_s."
             info "Disk IO ticks for $part, ms/s:" \
-                 "$read_ms_s read, $write_ms_s write."
+                 "read $read_ms_s, write $write_ms_s."
             info "Disk IO queue for $part, ms/s:" \
-                 "$io_ms_s active, $w_io_ms_s weighted."
+                 "active $io_ms_s, weighted $w_io_ms_s."
         else
             warn "No previous disk record for $part in the snapshot file."
         fi
@@ -340,7 +340,7 @@ for part in $part_list; do
 
     if [ -z $(grep $part /proc/swaps | cut -d ' ' -f 1) ]; then
         (
-            regex="$part (\S+) (\S+) (\S+) (\S+) (\S+)$"
+            regex="$part (\S+) (\S+) (\S+) (\S+)% (\S+)$"
             src=$(
                 df 2>/dev/null | sed -r 's/\s+/ /g' | grep -E "$part " | \
                 xargs -l bash -c "$( \
@@ -357,8 +357,9 @@ for part in $part_list; do
             src_path=${BASH_REMATCH[5]}
 
             info "Disk space for $part $src_path, kB:" \
-                 "$src_total total, $src_used used, $src_available available," \
-                 "$src_percent."
+                 "total $src_total, used $src_used, available $src_available."
+            info "Disk space usage for $part $src_path, %:" \
+                 "percent $src_percent."
         )
     fi
 done
@@ -417,11 +418,11 @@ for iface in $iface_list; do
                 ($src_errors_sent - $snap_errors_sent) / $interval ))
 
             info "Network bytes for $iface, B/s:" \
-                 "$bytes_received_s received, $bytes_sent_s sent."
+                 "received $bytes_received_s, sent $bytes_sent_s."
             info "Network packets for $iface, /s:" \
-                 "$packets_received_s received, $packets_sent_s sent."
+                 "received $packets_received_s, sent $packets_sent_s."
             info "Network errors for $iface, /s:" \
-                 "$errors_received_s received, $errors_sent_s sent."
+                 "received $errors_received_s, sent $errors_sent_s."
         else
             warn "No previous network record for $iface in the snapshot file."
         fi

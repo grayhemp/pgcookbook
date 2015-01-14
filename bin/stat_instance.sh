@@ -14,14 +14,14 @@ source $(dirname $0)/utils.sh
 
 touch $STAT_INSTANCE_FILE
 
-# instance responds value
+# instance responsiveness
 
-info 'Instance responds: value' \
+info 'Instance responsiveness: value' \
     $($PSQL -XAtc 'SELECT true' 2>/dev/null || echo 'f')'.'
 
-# postgres processes number
+# postgres processes count
 
-info 'Processes number: value '$(ps --no-headers -C postgres | wc -l)'.'
+info 'Postgres processes count: value '$(ps --no-headers -C postgres | wc -l)'.'
 
 # data size for database, filesystem except xlog, xlog
 
@@ -46,7 +46,7 @@ info 'Processes number: value '$(ps --no-headers -C postgres | wc -l)'.'
          "database $db_size, filesystem except xlog $fs_size, xlog $wal_size."
 )
 
-# activity by state number
+# activity by state count
 # activity by state max age of transaction
 
 sql=$(cat <<EOF
@@ -81,34 +81,34 @@ EOF
     [[ $src =~ $regex ]] ||
         die "Can not match the activity by state data: $src."
 
-    active_number=${BASH_REMATCH[1]}
+    active_count=${BASH_REMATCH[1]}
     active_max_age=${BASH_REMATCH[2]}
-    disabled_number=${BASH_REMATCH[3]}
+    disabled_count=${BASH_REMATCH[3]}
     disabled_max_age=${BASH_REMATCH[4]}
-    fastpath_number=${BASH_REMATCH[5]}
+    fastpath_count=${BASH_REMATCH[5]}
     fastpath_max_age=${BASH_REMATCH[6]}
-    idle_number=${BASH_REMATCH[7]}
+    idle_count=${BASH_REMATCH[7]}
     idle_max_age=${BASH_REMATCH[8]}
-    idle_tr_number=${BASH_REMATCH[9]}
+    idle_tr_count=${BASH_REMATCH[9]}
     idle_tr_max_age=${BASH_REMATCH[10]}
-    idle_tr_ab_number=${BASH_REMATCH[11]}
+    idle_tr_ab_count=${BASH_REMATCH[11]}
     idle_tr_ab_max_age=${BASH_REMATCH[12]}
-    unknown_number=${BASH_REMATCH[13]}
+    unknown_count=${BASH_REMATCH[13]}
     unknown_max_age=${BASH_REMATCH[14]}
 
-    info 'Activity by state number:' \
-         "active $active_number, disabled $disabled_number," \
-         "fastpath function call $fastpath_number, idle $idle_number," \
-         "idle in transaction $idle_tr_number," \
-         "idle in transaction (aborted) $idle_tr_ab_number," \
-         "unknown $unknown_number."
+    info 'Activity by state count:' \
+         "active $active_count, disabled $disabled_count," \
+         "fastpath function call $fastpath_count, idle $idle_count," \
+         "idle in transaction $idle_tr_count," \
+         "idle in transaction (aborted) $idle_tr_ab_count," \
+         "unknown $unknown_count."
     info 'Activity by state max age of transaction, s:' \
          "active $active_max_age," \
          "fastpath function call $fastpath_max_age," \
          "idle in transaction $idle_tr_max_age."
 )
 
-# lock waiting activity number
+# lock waiting activity count
 # lock waiting activity age min, max
 
 sql=$(cat <<EOF
@@ -128,22 +128,22 @@ EOF
     [[ $src =~ $regex ]] ||
         die "Can not match the activity stat data: $src."
 
-    number=${BASH_REMATCH[1]}
+    count=${BASH_REMATCH[1]}
     min=${BASH_REMATCH[2]}
     max=${BASH_REMATCH[3]}
 
-    info "Lock waiting activity number: value $number."
+    info "Lock waiting activity count: value $count."
     info "Lock waiting activity age, s: min $min, max $max."
 )
 
-# deadlocks number
-# block operations number for buffer cache hit, read
+# deadlocks count
+# block operations count for buffer cache hit, read
 # buffer cache hit fraction
-# temp files number
+# temp files count
 # temp data written size
-# transactions number committed and rolled back
-# tuple extraction number fetched and returned
-# tuple operations number inserted, updated and deleted
+# transactions count committed and rolled back
+# tuple extraction count fetched and returned
+# tuple operations count inserted, updated and deleted
 
 sql=$(cat <<EOF
 SELECT
@@ -217,16 +217,16 @@ EOF
         tup_updated=$(( $src_tup_updated - $snap_tup_updated ))
         tup_deleted=$(( $src_tup_deleted - $snap_tup_deleted ))
 
-        info "Deadlocks number: value $deadlocks."
-        info "Block operations number, /s:" \
+        info "Deadlocks count: value $deadlocks."
+        info "Block operations count, /s:" \
              "buffer cache hit $blks_hit_s, read $blks_read_s."
         info "Buffer cache hit fraction: value $hit_fraction."
-        info "Temp files number: value $temp_files."
+        info "Temp files count: value $temp_files."
         info "Temp data written size, B: value $temp_bytes."
-        info "Transaction number: commit $xact_commit, rollback $xact_rollback."
-        info "Tuple extraction number:" \
+        info "Transaction count: commit $xact_commit, rollback $xact_rollback."
+        info "Tuple extraction count:" \
              "fetched $tup_fetched, returned $tup_returned."
-        info "Tuple operations number:" \
+        info "Tuple operations count:" \
              "inserted $tup_inserted, updated $tup_updated," \
              "deleted $tup_deleted."
     else
@@ -239,7 +239,7 @@ EOF
         die "Can not save the database stat snapshot: $error."
 )
 
-# locks by granted number
+# locks by granted count
 
 sql=$(cat <<EOF
 SELECT
@@ -254,10 +254,10 @@ EOF
     src=$($PSQL -XAt -R ', ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
         die "Can not get a locks data: $src."
 
-    info "Locks by granted number: $src."
+    info "Locks by granted count: $src."
 )
 
-# prepared transaction number
+# prepared transaction count
 # prepared transaction age min, max
 
 sql=$(cat <<EOF
@@ -275,18 +275,18 @@ EOF
     [[ $src =~ $regex ]] ||
         die "Can not match the prepared transaction data: $src."
 
-    number=${BASH_REMATCH[1]}
+    count=${BASH_REMATCH[1]}
     min=${BASH_REMATCH[2]}
     max=${BASH_REMATCH[3]}
 
-    info "Prepared transactions: number $number."
+    info "Prepared transactions: count $count."
     info "Prepared transaction age, s: min $min, max $max."
 )
 
-# bgwritter checkpoint number scheduled, requested
+# bgwritter checkpoint count scheduled, requested
 # bgwritter checkpoint time write, sync
-# bgwritter buffers written by method number checkpoint, bgwriter and backends
-# bgwritter event number maxwritten stops, backend fsyncs
+# bgwritter buffers written by method count checkpoint, bgwriter and backends
+# bgwritter event count maxwritten stops, backend fsyncs
 
 sql=$(cat <<EOF
 SELECT
@@ -339,13 +339,13 @@ EOF
         maxw=$(( $src_maxw - $snap_maxw ))
         back_fsync=$(( $src_back_fsync - $snap_back_fsync ))
 
-        info "Bgwriter checkpoint number:" \
+        info "Bgwriter checkpoint count:" \
              "scheduled $chk_timed, requested $chk_req."
         info "Bgwriter checkpoint time, ms:" \
              "write $chk_w_time, sync $chk_s_time."
-        info "Bgwriter buffers written by method number:" \
+        info "Bgwriter buffers written by method count:" \
              "checkpoint $buf_chk, bgwriter $buf_cln, backend $buf_back."
-        info "Bgwriter event number:" \
+        info "Bgwriter event count:" \
              "maxwritten stops $maxw, backend fsyncs $back_fsync."
     else
         warn "No previous bgwritter stat record in the snapshot file."
@@ -392,7 +392,7 @@ EOF
     fi
 )
 
-# conflict with recovery number by type
+# conflict with recovery count by type
 
 sql=$(cat <<EOF
 SELECT
@@ -432,7 +432,7 @@ EOF
         bufferpin=$(( $src_bufferpin - $snap_bufferpin ))
         deadlock=$(( $src_deadlock - $snap_deadlock ))
 
-        info "Conflict with recovery number by type:" \
+        info "Conflict with recovery count by type:" \
              "tablespace $tablespace, lock $lock, snapshot $snapshot," \
              "bufferpin $bufferpin, deadlock $deadlock."
     else
@@ -445,7 +445,7 @@ EOF
         die "Can not save the database conflicts stat snapshot: $error."
 )
 
-# replication connection number
+# replication connection count
 
 sql=$(cat <<EOF
 SELECT count(1) FROM pg_stat_replication
@@ -456,14 +456,14 @@ EOF
     src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
         die "Can not get a replication stat data: $src."
 
-    info "Replication connections: number $src."
+    info "Replication connections: count $src."
 )
 
 # seq scan change fraction value
 # hot update change fraction value
-# dead and live tuple number dead, live
+# dead and live tuple count dead, live
 # dead tuple fraction value
-# vacuum and analyze numbers vacuum, analyze, autovacuum, autoanalyze
+# vacuum and analyze counts vacuum, analyze, autovacuum, autoanalyze
 
 sql=$(cat <<EOF
 SELECT
@@ -550,7 +550,7 @@ EOF
         info "Hot update fraction: value $hot_update_fraction."
         info "Dead and live tuple numer: dead $n_dead_tup, live $n_live_tup."
         info "Dead tuple fraction: value $dead_tuple_fraction."
-        info "Vacuum and analyze numbers:" \
+        info "Vacuum and analyze counts:" \
              "vacuum $vacuum_count, analyze $analyze_count," \
              "autovacuum $autovacuum_count, autoanalyze $autoanalyze_count."
     else
