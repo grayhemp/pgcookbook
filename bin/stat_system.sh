@@ -370,6 +370,7 @@ iface_list=$(echo $(
     cat /proc/net/dev | sed -r 's/\s+/ /g' | sed -r 's/^ //g' | \
     grep -E ' *\S+: ' | cut -d ' ' -f 1 | sed 's/://' ) 2>&1) ||
     die "Can not get a network interface list: $iface_list."
+
 # network bytes sent and received
 # network packets sent and received
 # network errors
