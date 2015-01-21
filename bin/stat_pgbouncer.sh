@@ -32,10 +32,8 @@ instance_dsn=$(
 # maxwait time
 
 (
-    row_list=$((
-        $PSQL -XAt -F ' ' -c "SHOW POOLS" pgbouncer | \
-        grep -vE '^pgbouncer') 2>&1) || \
-        die "Can not get a pools data: $row_list."
+    row_list=$($PSQL -XAt -F ' ' -c "SHOW POOLS" pgbouncer 2>&1) || \
+        die "Can not get a pools data for '$instance_dsn': $row_list."
 
     regex='(\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)$'
 
@@ -66,9 +64,7 @@ instance_dsn=$(
 # request time
 
 (
-    row_list=$((
-        $PSQL -XAt -F ' ' -c "SHOW STATS" pgbouncer | \
-        grep -vE '^pgbouncer') 2>&1) || \
+    row_list=$($PSQL -XAt -F ' ' -c "SHOW STATS" pgbouncer 2>&1) || \
         die "Can not get a stats data for '$instance_dsn': $row_list."
 
     regex="(\S+) stats $instance_dsn (\S+) (\S+) (\S+) (\S+) \S+ \S+ \S+ \S+$"
@@ -108,11 +104,13 @@ instance_dsn=$(
             (( $requests > 0 )) && \
             echo "scale=3; ($src_requests_time - $snap_requests_time) /" \
                  "($requests * 1000)" | \
-            bc | awk '{printf "%.3f", $0}' || echo 'null')
+            bc | awk '{printf "%.3f", $0}' || echo 'N/A')
 
-        info "Requests count: value $requests."
-        info "Network traffic, B/s: received $received_s, sent $sent_s."
-        info "Average request time, ms: value $avg_request_time."
+        info "Requests count for '$instance_dsn': value $requests."
+        info "Network traffic for '$instance_dsn', B/s:" \
+             "received $received_s, sent $sent_s."
+        info "Average request time for '$instance_dsn', ms:" \
+             "value $avg_request_time."
     else
         warn "No previous stats record for '$instance_dsn'" \
              "in the snapshot file."
@@ -124,5 +122,46 @@ instance_dsn=$(
         die "Can not save the stats snapshot for '$instance_dsn': $error."
 )
 
-echo
-cat $STAT_PGBOUNCER_FILE
+# max database/user pool utilization
+
+(
+    result=$(
+        join -t '|' -o '2.1 2.2 2.3 1.2' \
+            <($PSQL -XAtc 'SHOW DATABASES' pgbouncer \
+              | cut -d '|' -f 4,6 | sort) \
+            <($PSQL -XAtc 'SHOW POOLS' pgbouncer \
+              | cut -d '|' -f 1,2,3 | sort) 2>&1) || \
+        die "Can not get a pool utilization data for '$instance_dsn': $result."
+
+    result=$(
+        echo "$result" | grep -v 'pgbouncer|pgbouncer' \
+             | sed -r 's/([^|]+?\|){2}/scale=2; 100 * /' | sed 's/|/\//' | bc \
+             | sort -nr | head -n 1 | awk '{printf "%.2f", $0}' )
+
+    test -z "$result" && result='N/A'
+
+    info "Max databse/user pool utilization for '$instance_dsn', %:" \
+         "value $result."
+)
+
+# client pool utilization
+
+(
+    clients_count=$($PSQL -XAtc 'SHOW CLIENTS' pgbouncer 2>&1) || \
+        die "Can not get a clients data for '$instance_dsn': $clients_count."
+
+    clients_count=$(echo "$clients_count" | wc -l)
+
+    max_clients_conn=$($PSQL -XAtc 'SHOW CONFIG' pgbouncer 2>&1) || \
+        die "Can not get a config data for '$instance_dsn': $clients_count."
+
+    max_clients_conn=$(
+        echo "$max_clients_conn" | grep max_client_conn | cut -d '|' -f 2)
+
+    result=$(
+        echo "scale=2; 100 * $clients_count / $max_clients_conn" | bc \
+        | awk '{printf "%.2f", $0}')
+
+    info "Client pool utilization for '$instance_dsn', %:" \
+         "value $result."
+)
