@@ -75,7 +75,7 @@ EOF
              'idle in transaction (\S+) (\S+)' \
              'idle in transaction \(aborted\) (\S+) (\S+) unknown (\S+) (\S+)')
 
-    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get an activity by state data: $src."
 
     [[ $src =~ $regex ]] ||
@@ -122,7 +122,7 @@ EOF
 
 (
     regex='(\S+) (\S+) (\S+)'
-    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get an activity stat data: $src."
 
     [[ $src =~ $regex ]] ||
@@ -160,7 +160,7 @@ EOF
 
 (
     regex='(\S+) database stat (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)'
-    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get a database stat data: $src."
 
     [[ $src =~ $regex ]] || die "Can not match the database stat data: $src."
@@ -206,7 +206,7 @@ EOF
         hit_fraction=$(
             (( $blks_hit + $blks_read > 0 )) && \
             echo "scale=2; $blks_hit / ($blks_hit + $blks_read)" | \
-            bc | awk '{printf "%.2f", $0}' || echo 'null')
+            bc | awk '{printf "%.2f", $0}' || echo 'N/A')
         temp_files=$(( $src_temp_files - $snap_temp_files ))
         temp_bytes=$(( $src_temp_bytes - $snap_temp_bytes ))
         xact_commit=$(( $src_xact_commit - $snap_xact_commit ))
@@ -251,7 +251,7 @@ EOF
 )
 
 (
-    src=$($PSQL -XAt -R ', ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -R ', ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get a locks data: $src."
 
     info "Locks by granted count: $src."
@@ -269,7 +269,7 @@ EOF
 
 (
     regex='(\S+) (\S+) (\S+)'
-    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get a prepared transaction data: $src."
 
     [[ $src =~ $regex ]] ||
@@ -301,7 +301,7 @@ EOF
 
 (
     regex='bgwriter stat (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)'
-    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get a bgwriter stat data: $src."
 
     [[ $src =~ $regex ]] || die "Can not match the bgwriter stat data: $src."
@@ -385,7 +385,7 @@ EOF
     if [[ -z "$extension_line" ]]; then
         note "Can not stat shared buffers, pg_buffercache is not installed."
     else
-        src=$($PSQL -XAt -R ', ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+        src=$($PSQL -XAt -R ', ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
             die "Can not get a buffercache data data: $src."
 
         info "Shared buffers usage count distribution: $src."
@@ -405,7 +405,7 @@ EOF
 
 (
     regex='database conflicts stat (\S+) (\S+) (\S+) (\S+) (\S+)'
-    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get a database conflicts stat data: $src."
 
     [[ $src =~ $regex ]] ||
@@ -453,7 +453,7 @@ EOF
 )
 
 (
-    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get a replication stat data: $src."
 
     info "Replication connections: count $src."
@@ -486,7 +486,7 @@ EOF
     regex='all tables stat (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)'
 
     for db in $db_list; do
-        src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=null' -c "$sql" $db 2>&1) ||
+        src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" $db 2>&1) ||
             die "Can not get an all tables stat data: $src."
 
         [[ $src =~ $regex ]] ||
@@ -536,15 +536,15 @@ EOF
         seq_scan_fraction=$(
             (( $seq_scan + $idx_scan > 0 )) && \
             echo "scale=2; $seq_scan / ($seq_scan + $idx_scan)" | \
-            bc | awk '{printf "%.2f", $0}' || echo 'null')
+            bc | awk '{printf "%.2f", $0}' || echo 'N/A')
         hot_update_fraction=$(
             (( $n_tup_upd > 0 )) && \
             echo "scale=2; $n_tup_hot_upd / $n_tup_upd" | \
-            bc | awk '{printf "%.2f", $0}' || echo 'null')
+            bc | awk '{printf "%.2f", $0}' || echo 'N/A')
         dead_tuple_fraction=$(
             (( $n_dead_tup + $n_live_tup > 0 )) && \
             echo "scale=2; $n_dead_tup / ($n_dead_tup + $n_live_tup)" | \
-            bc | awk '{printf "%.2f", $0}' || echo 'null')
+            bc | awk '{printf "%.2f", $0}' || echo 'N/A')
 
         info "Seq scan fraction: value $seq_scan_fraction."
         info "Hot update fraction: value $hot_update_fraction."
