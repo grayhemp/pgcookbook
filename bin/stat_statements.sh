@@ -259,9 +259,9 @@ EOF
     error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
         die "Can not get a snapshot: $error."
 else
-    test $STAT_ORDER -eq 0 && order='time'
-    test $STAT_ORDER -eq 1 && order='calls'
-    test $STAT_ORDER -eq 2 && order='IO time'
+    [ $STAT_ORDER -eq 0 ] && order='time'
+    [ $STAT_ORDER -eq 1 ] && order='calls'
+    [ $STAT_ORDER -eq 2 ] && order='IO time'
 
     if [ -z $STAT_REPLICA_DSN ]; then
         info "Origin report ordered by $order."

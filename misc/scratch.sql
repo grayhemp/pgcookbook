@@ -426,7 +426,7 @@ END $$;
 rm -r /mnt/archive/parts
 mkdir -p /mnt/archive/parts
 bash bin/archive_tables.sh
-ls -l /mnt/archive/parts
+ls -l /mnt/archive/parts/*
 
 */
 
