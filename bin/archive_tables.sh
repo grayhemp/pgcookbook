@@ -47,11 +47,11 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
         file=$part.$ts.dump
 
         if [ $ARCHIVE_LOCAL_DIR != $ARCHIVE_ARCHIVE_DIR ]; then
-            test -f $ARCHIVE_LOCAL_DIR/$dbname/$file && \
+            [ -f $ARCHIVE_LOCAL_DIR/$dbname/$file ] && \
                 die "File $dbname/$file already exists locally."
         fi
 
-        test -f $ARCHIVE_ARCHIVE_DIR/$dbname/$file && \
+        [ -f $ARCHIVE_ARCHIVE_DIR/$dbname/$file ] && \
             die "File $dbname/$file allready exists in archive."
 
         if ! $ARCHIVE_DRY_RUN; then

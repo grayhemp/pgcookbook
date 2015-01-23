@@ -6,7 +6,7 @@
 #
 # Settings can be written in the form
 #
-#     test -z "$SETTING" && SETTING='some value'
+#     SETTING=${SETTING:-'some value'}
 #
 # that means you can also set them from the command line, eg.
 #
@@ -18,13 +18,14 @@
 
 # Common settings for all the scripts
 
-test -z "$HOST" && HOST=
-test -z "$PORT" && PORT=
-test -z "$USER" && USER=
+HOST=${HOST:-}
+PORT=${PORT:-}
+USER=${USER:-}
 
-DSN="$(test ! -z "$HOST" && echo '-h' $HOST) \
-     $(test ! -z "$PORT" && echo '-p' $PORT) \
-     $(test ! -z "$USER" && echo '-U' $USER)"
+DSN=$(
+    echo $([ ! -z "$HOST" ] && echo "-h $HOST") \
+         $([ ! -z "$PORT" ] && echo "-p $PORT") \
+         $([ ! -z "$USER" ] && echo "-U $USER"))
 
 PSQL="/usr/bin/psql $DSN"
 PGDUMP="/usr/bin/pg_dump $DSN"
@@ -40,15 +41,13 @@ GIT='/usr/bin/git'
 
 # ssh_tunnel.sh
 
-test -z "$TUNNEL_PORT" && TUNNEL_PORT=2345
-test -z "$TUNNEL_HOST_PORT" && TUNNEL_HOST_PORT=5432
-test -z "$TUNNEL_HOST" && TUNNEL_HOST='host2'
+TUNNEL_PORT=${TUNNEL_PORT:-2345}
+TUNNEL_HOST_PORT=${TUNNEL_HOST_PORT:-5432}
+TUNNEL_HOST=${TUNNEL_HOST:-'host2'}
 TUNNEL_COMP_LEVEL=2
 TUNNEL_RETRY_DELAY=60
-test -z "$TUNNEL_LOCK" && \
-    TUNNEL_LOCK="$TUNNEL_PORT-$TUNNEL_HOST_PORT-$TUNNEL_HOST"
-test -z "$TUNNEL_LOCK_FILE" && \
-    TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_LOCK"
+TUNNEL_LOCK=${TUNNEL_LOCK:-"$TUNNEL_PORT-$TUNNEL_HOST_PORT-$TUNNEL_HOST"}
+TUNNEL_LOCK_FILE=${TUNNEL_LOCK_FILE:-"/tmp/ssh_tunnel.$TUNNEL_LOCK"}
 
 # manage_dumps.sh
 
@@ -61,12 +60,11 @@ DUMPS_KEEP_MONTHLY_PARTS='1 year'
 
 # restore_dump.sh
 
-test -z "$RESTORE_DROP" && RESTORE_DROP=true
-test -z "$RESTORE_DBNAME" && RESTORE_DBNAME='dbname1_latest'
-test -z "$RESTORE_FILE" && \
-    RESTORE_FILE=$( \
-        find $DUMPS_ARCHIVE_DIR -maxdepth 1 -mindepth 1 | \
-        sort | tail -n 1)'/dbname1.dump.gz'
+RESTORE_DROP=${RESTORE_DROP:-true}
+RESTORE_DBNAME=${RESTORE_DBNAME:-'dbname1_latest'}
+RESTORE_FILE=${RESTORE_FILE:-$(
+    find $DUMPS_ARCHIVE_DIR -maxdepth 1 -mindepth 1 | \
+    sort | tail -n 1)'/dbname1.dump.gz'}
 RESTORE_THREADS=4
 RESTORE_FILTER_SQL=$(cat <<EOF
     SELECT schemaname, tablename FROM pg_tables
@@ -95,7 +93,7 @@ EOF
 
 # archive_tables.sh
 
-test -z "$ARCHIVE_DRY_RUN" && ARCHIVE_DRY_RUN=false
+ARCHIVE_DRY_RUN=${ARCHIVE_DRY_RUN:-false}
 ARCHIVE_DBNAME_LIST='dbname1 dbname2'
 ARCHIVE_LOCAL_DIR=
 ARCHIVE_ARCHIVE_DIR='/mnt/archive/parts'
@@ -127,12 +125,12 @@ function ARCHIVE_COMMAND_AFTER_DROP() {
 # stat_statements.sh
 
 STAT_DBNAME='dbname1'
-test -z "$STAT_REPLICA_DSN" && STAT_REPLICA_DSN=
-test -z "$STAT_SNAPSHOT" && STAT_SNAPSHOT=false
-test -z "$STAT_SINCE" && STAT_SINCE=$(date -I)
-test -z "$STAT_TILL" && STAT_TILL=$(date -I --date='+1 day')
-test -z "$STAT_N" && STAT_N=10
-test -z "$STAT_ORDER" && STAT_ORDER=0
+STAT_REPLICA_DSN=${STAT_REPLICA_DSN:-}
+STAT_SNAPSHOT=${STAT_SNAPSHOT:-false}
+STAT_SINCE=${STAT_SINCE:-$(date -I)}
+STAT_TILL=${STAT_TILL:-$(date -I --date='+1 day')}
+STAT_N=${STAT_N:-10}
+STAT_ORDER=${STAT_ORDER:-0}
 STAT_KEEP_SNAPSHOTS='7 days'
 
 # terminate_activity.sh
@@ -155,19 +153,19 @@ EOF
 
 # process_until_0.sh
 
-test -z "$PROCESS_DBNAME" && PROCESS_DBNAME=
+PROCESS_DBNAME=${PROCESS_DBNAME:-}
 
 # replica_lag.sh
 
 LAG_DBNAME='dbname1'
-test -z "$LAG_DSN" && LAG_DSN=
+LAG_DSN=${LAG_DSN:-}
 LAG_RECEIVE=$((32 * 1024 * 1024))
 LAG_REPLAY=$((32 * 1024 * 1024))
 LAG_REPLAY_AGE='5 minutes'
 
 # refresh_matviews.sh
 
-test -z "$MATVIEWS_DBNAME" && MATVIEWS_DBNAME=
+MATVIEWS_DBNAME=${MATVIEWS_DBNAME:-}
 
 # commit_schema.sh
 
@@ -183,19 +181,19 @@ SCHEMA_EXCLUDE_TABLE_SQL=$(cat <<EOF
     WHERE schemaname = 'partitions'
 EOF
 )
-test -z "$SCHEMA_SSH_KEY" && SCHEMA_SSH_KEY=
-test -z "$SCHEMA_ACTION" && SCHEMA_ACTION=
+SCHEMA_SSH_KEY=${SCHEMA_SSH_KEY:-}
+SCHEMA_ACTION=${SCHEMA_ACTION:-}
 
 # manage_pitr.sh
 
-test -z "$PITR_WAL" && PITR_WAL=false
+PITR_WAL=${PITR_WAL:-false}
 PITR_LOCAL_DIR=
 PITR_ARCHIVE_DIR='/mnt/archive/basebackups'
 PITR_WAL_ARCHIVE_DIR='/mnt/archive/wal'
-test -z "$PITR_WAL_RECEIVER_LOCK_FILE" && \
-    PITR_WAL_RECEIVER_LOCK_FILE='/tmp/wal_receiver.'$(
+PITR_WAL_RECEIVER_LOCK_FILE=${PITR_WAL_RECEIVER_LOCK_FILE:-$(
+    echo '/tmp/wal_receiver.'$(
         echo $PITR_WAL_ARCHIVE_DIR | sed 's/\//_/g'
-    )"-$HOST-$PORT-$USER"
+    )"-$HOST-$PORT-$USER")}
 PITR_KEEP_BACKUPS=2
 
 # stat_system.sh

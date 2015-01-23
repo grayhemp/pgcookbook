@@ -262,9 +262,9 @@ EOF
 
     info "Snapshot has been made."
 else
-    test $STAT_ORDER -eq 0 && order='time'
-    test $STAT_ORDER -eq 1 && order='calls'
-    test $STAT_ORDER -eq 2 && order='IO time'
+    [ $STAT_ORDER -eq 0 ] && order='time'
+    [ $STAT_ORDER -eq 1 ] && order='calls'
+    [ $STAT_ORDER -eq 2 ] && order='IO time'
 
    sql=$(cat <<EOF
 SELECT public.stat_statements_get_report(

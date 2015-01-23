@@ -21,7 +21,7 @@
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
-test ! -z $SCHEMA_ACTION && ! contains "dump commit" $SCHEMA_ACTION  && \
+[ ! -z "$SCHEMA_ACTION" ] && ! contains "dump commit" $SCHEMA_ACTION  && \
     die "Wrong SCHEMA_ACTION '$SCHEMA_ACTION' is specified."
 
 if [ "$SCHEMA_ACTION" == 'dump' ] || [ -z "$SCHEMA_ACTION" ]; then

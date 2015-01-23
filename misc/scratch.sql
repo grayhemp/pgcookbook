@@ -431,7 +431,7 @@ END $$;
 /*
 
 bash bin/archive_tables.sh
-ls -l /mnt/archive/parts
+ls -l /mnt/archive/parts/*
 
 */
 

@@ -43,7 +43,7 @@ if contains "$dbname_list" $RESTORE_DBNAME; then
         for preserve in $preserve_list; do
             file=$RESTORE_DBNAME-$preserve.dump
 
-            test -f $RESTORE_PRESERVE_DIR/$file && \
+            [ -f $RESTORE_PRESERVE_DIR/$file ] && \
                 die "Preserved dump $file allready exists."
 
             error=$($PGDUMP -F c -Z 2 -t $preserve \

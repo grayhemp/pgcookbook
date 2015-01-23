@@ -41,7 +41,6 @@ message=$(
 
 message=$(echo -e "$message" | sed '${/^$/d;}')
 
-test -z "$message" || \
-    die "Activity has been terminated:\n$message"
+[ -z "$message" ] || die "Activity has been terminated:\n$message"
 
 info "No activity to terminate."
