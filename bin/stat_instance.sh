@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# stat_instance.sh - postgres instance statistics collecting script.
+# stat_instance.sh - PostgreSQL instance statistics collecting script.
 #
 # Collects a variety of postgres related statistics. Compatible with
 # PostgreSQL >=9.2.
@@ -453,7 +453,7 @@ EOF
 )
 
 (
-    src=$($PSQL -XAt -R ' ' -F ' ' -P 'null=N/A' -c "$sql" 2>&1) ||
+    src=$($PSQL -XAt -P 'null=N/A' -c "$sql" 2>&1) ||
         die "Can not get a replication stat data: $src."
 
     info "Replication connections: count $src."

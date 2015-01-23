@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# stat_pgbouncer.sh - pgbouncer statistics collecting script.
+# stat_pgbouncer.sh - PgBouncer statistics collecting script.
 #
-# Collects a variety of pgbouncer statistics. Do not forget to specify
+# Collects a variety of PgBouncer statistics. Do not forget to specify
 # an appropriate connection parameters for monitored instnces.
 #
 # Copyright (c) 2014 Sergey Konoplev
@@ -56,7 +56,7 @@ instance_dsn=$(
     info "Server connection counts by stat for '$instance_dsn':" \
          "active $sv_active, idle $sv_idle, used $sv_used, tested $sv_tested," \
          "login $sv_login."
-    info "Maximum waiting time for '$instance_dsn', s: value $maxwait."
+    info "Max waiting time for '$instance_dsn', s: value $maxwait."
 )
 
 # requests count
@@ -151,6 +151,14 @@ instance_dsn=$(
         die "Can not get a clients data for '$instance_dsn': $clients_count."
 
     clients_count=$(echo "$clients_count" | wc -l)
+
+
+
+
+
+
+
+
 
     max_clients_conn=$($PSQL -XAtc 'SHOW CONFIG' pgbouncer 2>&1) || \
         die "Can not get a config data for '$instance_dsn': $clients_count."
