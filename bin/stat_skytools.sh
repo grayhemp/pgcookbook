@@ -166,8 +166,8 @@ EOF
         [[ $src =~ $regex ]] ||
             die "Can not match the queue and consumer counters data: $src."
 
-        queue_count=$(( ${queue_count:0} + ${BASH_REMATCH[1]} ))
-        consumer_count=$(( ${consumer_count:0} + ${BASH_REMATCH[2]} ))
+        queue_count=$(( ${queue_count:-0} + ${BASH_REMATCH[1]} ))
+        consumer_count=$(( ${consumer_count:-0} + ${BASH_REMATCH[2]} ))
     done
 
     info "Number of objects: queues $queue_count, consumer $consumer_count."

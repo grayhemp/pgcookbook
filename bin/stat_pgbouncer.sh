@@ -40,14 +40,14 @@ instance_dsn=$(
         [[ $src =~ $regex ]] ||
             die "Can not match the pools data for $instance_dsn: $src."
 
-        cl_active=$(( ${cl_active:0} + ${BASH_REMATCH[1]} ))
-        cl_waiting=$(( ${cl_waiting:0} + ${BASH_REMATCH[2]} ))
-        sv_active=$(( ${sv_active:0} + ${BASH_REMATCH[3]} ))
-        sv_idle=$(( ${sv_idle:0} + ${BASH_REMATCH[4]} ))
-        sv_used=$(( ${sv_used:0} + ${BASH_REMATCH[5]} ))
-        sv_tested=$(( ${sv_tested:0} + ${BASH_REMATCH[6]} ))
-        sv_login=$(( ${sv_login:0} + ${BASH_REMATCH[7]} ))
-        maxwait=$(( ${maxwait:0} + ${BASH_REMATCH[8]} ))
+        cl_active=$(( ${cl_active:-0} + ${BASH_REMATCH[1]} ))
+        cl_waiting=$(( ${cl_waiting:-0} + ${BASH_REMATCH[2]} ))
+        sv_active=$(( ${sv_active:-0} + ${BASH_REMATCH[3]} ))
+        sv_idle=$(( ${sv_idle:-0} + ${BASH_REMATCH[4]} ))
+        sv_used=$(( ${sv_used:-0} + ${BASH_REMATCH[5]} ))
+        sv_tested=$(( ${sv_tested:-0} + ${BASH_REMATCH[6]} ))
+        sv_login=$(( ${sv_login:-0} + ${BASH_REMATCH[7]} ))
+        maxwait=$(( ${maxwait:-0} + ${BASH_REMATCH[8]} ))
     done <<< "$row_list"
 
     info "Client connection counts by stat for $instance_dsn:" \
@@ -75,10 +75,10 @@ instance_dsn=$(
         [[ $src =~ $regex ]] ||
             die "Can not match the stats data for $instance_dsn: $src."
 
-        src_requests=$(( ${src_requests:0} + ${BASH_REMATCH[2]} ))
-        src_received=$(( ${src_received:0} + ${BASH_REMATCH[3]} ))
-        src_sent=$(( ${src_sent:0} + ${BASH_REMATCH[4]} ))
-        src_requests_time=$(( ${src_requests_time:0} + ${BASH_REMATCH[5]} ))
+        src_requests=$(( ${src_requests:-0} + ${BASH_REMATCH[2]} ))
+        src_received=$(( ${src_received:-0} + ${BASH_REMATCH[3]} ))
+        src_sent=$(( ${src_sent:-0} + ${BASH_REMATCH[4]} ))
+        src_requests_time=$(( ${src_requests_time:-0} + ${BASH_REMATCH[5]} ))
     done <<< "$row_list"
 
     src=$(

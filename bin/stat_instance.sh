@@ -492,18 +492,18 @@ EOF
         [[ $src =~ $regex ]] ||
             die "Can not match the all tables stat data: $src."
 
-        src_seq_scan=$(( ${src_seq_scan:0} + ${BASH_REMATCH[1]} ))
-        src_idx_scan=$(( ${src_idx_scan:0} + ${BASH_REMATCH[2]} ))
-        src_n_tup_hot_upd=$(( ${src_n_tup_hot_upd:0} + ${BASH_REMATCH[3]} ))
-        src_n_tup_upd=$(( ${src_n_tup_upd:0} + ${BASH_REMATCH[4]} ))
-        n_dead_tup=$(( ${n_dead_tup:0} + ${BASH_REMATCH[5]} ))
-        n_live_tup=$(( ${n_live_tup:0} + ${BASH_REMATCH[6]} ))
-        src_vacuum_count=$(( ${src_vacuum_count:0} + ${BASH_REMATCH[7]} ))
-        src_analyze_count=$(( ${src_analyze_count:0} + ${BASH_REMATCH[8]} ))
+        src_seq_scan=$(( ${src_seq_scan:-0} + ${BASH_REMATCH[1]} ))
+        src_idx_scan=$(( ${src_idx_scan:-0} + ${BASH_REMATCH[2]} ))
+        src_n_tup_hot_upd=$(( ${src_n_tup_hot_upd:-0} + ${BASH_REMATCH[3]} ))
+        src_n_tup_upd=$(( ${src_n_tup_upd:-0} + ${BASH_REMATCH[4]} ))
+        n_dead_tup=$(( ${n_dead_tup:-0} + ${BASH_REMATCH[5]} ))
+        n_live_tup=$(( ${n_live_tup:-0} + ${BASH_REMATCH[6]} ))
+        src_vacuum_count=$(( ${src_vacuum_count:-0} + ${BASH_REMATCH[7]} ))
+        src_analyze_count=$(( ${src_analyze_count:-0} + ${BASH_REMATCH[8]} ))
         src_autovacuum_count=$((
-            ${src_autovacuum_count:0} + ${BASH_REMATCH[9]} ))
+            ${src_autovacuum_count:-0} + ${BASH_REMATCH[9]} ))
         src_autoanalyze_count=$((
-            ${src_autoanalyze_count:0} + ${BASH_REMATCH[10]} ))
+            ${src_autoanalyze_count:-0} + ${BASH_REMATCH[10]} ))
     done
 
     src=$(

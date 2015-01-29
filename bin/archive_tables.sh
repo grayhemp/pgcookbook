@@ -76,7 +76,7 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
         fi
     done
 
-    dump_time=$(( ${dump_time:0} + $(timer $dump_start_time) ))
+    dump_time=$(( ${dump_time:-0} + $(timer $dump_start_time) ))
 
     if ! $ARCHIVE_DRY_RUN; then
         if [ $ARCHIVE_LOCAL_DIR != $ARCHIVE_ARCHIVE_DIR ]; then
