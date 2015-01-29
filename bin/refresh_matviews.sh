@@ -74,22 +74,32 @@ EOF
 dml=$($PSQL -XAt -c "$sql" $MATVIEWS_DBNAME 2>&1) || \
     die "Can not get a DML to refresh materialized views: $dml."
 
-no_errors=true
-output_list=''
-while read cmd; do
-    output_list="$output_list\n$cmd"
-
-    was_error=false
-    error=$($PSQL -XAt -c "$cmd" $MATVIEWS_DBNAME 2>&1) || was_error=true
-
-    if $was_error; then
-        output_list="$output_list\n$error"
-        no_errors=false
-    fi
-done <<< "$dml"
-
-if $no_errors; then
-    info "Materialized views have been successfully refreshed:$output_list"
+if [ -z "$dml" ]; then
+    info "No materialized views to refresh."
 else
-    die "Can not refresh materialized views:$output_list"
+    refreshing_start_time=$(timer)
+
+    no_errors=true
+    output_list=''
+    while read cmd; do
+        output_list="$output_list\n$cmd"
+
+        was_error=false
+        error=$($PSQL -XAt -c "$cmd" $MATVIEWS_DBNAME 2>&1) || was_error=true
+
+        if $was_error; then
+            output_list="$output_list\n$error"
+            no_errors=false
+        fi
+    done <<< "$dml"
+
+    if $no_errors; then
+        info "Materialized views have been successfully refreshed:$output_list"
+    else
+        die "Can not refresh materialized views:$output_list"
+    fi
+
+    refreshing_time=$(timer $refreshing_start_time)
 fi
+
+info "Refreshing time, s: value ${refreshing_time:-N/A}."
