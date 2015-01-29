@@ -354,13 +354,6 @@ FROM filter;
 
 -- archive_tables.sh
 
-/*
-
-rm -r /mnt/archive/parts
-mkdir -p /mnt/archive/parts
-
-*/
-
 \c postgres
 DROP DATABASE IF EXISTS dbname1;
 DROP DATABASE IF EXISTS dbname2;
@@ -430,6 +423,8 @@ END $$;
 
 /*
 
+rm -r /mnt/archive/parts
+mkdir -p /mnt/archive/parts
 bash bin/archive_tables.sh
 ls -l /mnt/archive/parts/*
 
@@ -598,5 +593,23 @@ SELECT
     extract(epoch from now())::integer AS " ",
     count(deadlocks) as deadlock_number
 FROM pg_stat_database;
+
+-- refresh_matviews.sh
+
+CREATE MATERIALIZED VIEW a AS SELECT 1 AS i;
+CREATE MATERIALIZED VIEW b AS SELECT * FROM a;
+CREATE MATERIALIZED VIEW c AS SELECT * FROM b;
+CREATE MATERIALIZED VIEW d AS SELECT * FROM a;
+CREATE MATERIALIZED VIEW e AS SELECT 1 AS i;
+CREATE INDEX a_i ON a (i);
+CREATE INDEX c_i ON c (i);
+CREATE INDEX e_i ON e (i);
+
+/*
+
+bash bin/refresh_matviews.sh
+
+*/
+
 
 --
