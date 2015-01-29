@@ -22,6 +22,8 @@
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
+restore_start_time=$(timer)
+
 dbname_list=$( \
     $PSQL -XAt -c "SELECT datname FROM pg_database" postgres 2>&1) || \
     die "Can not get database list: $dbname_list."
@@ -194,3 +196,5 @@ if [ ! -z "$preserve_list" ]; then
 fi
 
 info "Database restored."
+
+info "Restore time, s: value $(timer $restore_start_time)."
