@@ -16,6 +16,8 @@ total_processed=0
 processed=1
 sql=$(readall)
 
+start_time=$(timer)
+
 while [ $processed -gt 0 ]; do
     result=$($PSQL -X -c "$sql" $PROCESS_DBNAME 2>&1) || \
         die "Can not process: $result."
@@ -23,7 +25,9 @@ while [ $processed -gt 0 ]; do
     processed=$(echo $result | cut -d ' ' -f 2,3 | sed 's/^.* //')
     (( total_processed+=processed ))
 
-    progress "Processed $total_processed rows."
+    progress "Processed rows: count $total_processed."
 done
 
 echo
+
+info "Processing time, s: value $(timer $start_time)."
