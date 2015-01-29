@@ -38,7 +38,7 @@ instance_dsn=$(
 
     while read src; do
         [[ $src =~ $regex ]] ||
-            die "Can not match the pools data for $instance_dsn: $src"
+            die "Can not match the pools data for $instance_dsn: $src."
 
         cl_active=$(( ${cl_active:0} + ${BASH_REMATCH[1]} ))
         cl_waiting=$(( ${cl_waiting:0} + ${BASH_REMATCH[2]} ))
@@ -73,7 +73,7 @@ instance_dsn=$(
         src=$src_time' '$(echo $src | sed -r "s/^\S+/stats $instance_dsn/")
 
         [[ $src =~ $regex ]] ||
-            die "Can not match the stats data for $instance_dsn: $src"
+            die "Can not match the stats data for $instance_dsn: $src."
 
         src_requests=$(( ${src_requests:0} + ${BASH_REMATCH[2]} ))
         src_received=$(( ${src_received:0} + ${BASH_REMATCH[3]} ))
@@ -150,14 +150,6 @@ instance_dsn=$(
         die "Can not get a clients data for $instance_dsn: $clients_count."
 
     clients_count=$(echo "$clients_count" | wc -l)
-
-
-
-
-
-
-
-
 
     max_clients_conn=$($PSQL -XAtc 'SHOW CONFIG' pgbouncer 2>&1) || \
         die "Can not get a config data for $instance_dsn: $clients_count."
