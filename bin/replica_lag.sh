@@ -21,13 +21,28 @@
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
+sql=$(cat <<EOF
+SELECT
+    CASE WHEN
+        string_to_array(
+            regexp_replace(
+                version(),
+                E'.*PostgreSQL (\\\\d+\.\\\\d+).*', E'\\\\1'),
+            '.'
+        )::integer[] < array[9,4]
+    THEN 'text' ELSE 'pg_lsn' END;
+EOF
+)
+
+lsn_type=$($PSQL -XAt -c "$sql" $LAG_DBNAME 2>&1) || \
+    die "Can not get an lsn type: $lsn_type."
+
 error=$(
     $PSQL -XAt -c "CREATE EXTENSION IF NOT EXISTS dblink;" \
     $LAG_DBNAME 2>&1) || \
     die "Can not create environment: $error."
 
-error=$(
-    $PSQL -XAt -c "SELECT txid_current();" $LAG_DBNAME 2>&1) || \
+error=$($PSQL -XAt -c "SELECT txid_current();" $LAG_DBNAME 2>&1) || \
     die "Can not generale a minimal WAL record: $error."
 
 sql=$(cat <<EOF
@@ -49,37 +64,45 @@ WITH info AS (
             pg_last_xlog_replay_location(),
             pg_last_xact_replay_timestamp() \$q\$
     ) AS s(
-        in_recovery boolean, receive_location text, replay_location text,
-        replay_timestamp timestamp with time zone
+        in_recovery boolean, receive_location $lsn_type,
+        replay_location $lsn_type, replay_timestamp timestamp with time zone
     )
-), filter AS (
-    SELECT * FROM info
-    WHERE
+)
+SELECT
+    coalesce(receive_lag::text, 'N/A'),
+    coalesce(replay_lag::text, 'N/A'),
+    coalesce((extract(epoch from replay_age) * 1000)::integer::text, 'N/A'),
+    in_recovery,
+    (
         NOT in_recovery OR
         receive_lag IS NULL OR receive_lag > $LAG_RECEIVE OR
         replay_lag IS NULL OR replay_lag > $LAG_REPLAY OR
         replay_age IS NULL OR replay_age > '$LAG_REPLAY_AGE'::interval
-)
-SELECT
-    CASE WHEN in_recovery THEN
-        format(
-            E'Receive lag: %s\n' ||
-            E'Replay lag: %s\n' ||
-            E'Replay age: %s',
-            coalesce(pg_size_pretty(receive_lag), 'N/A'),
-            coalesce(pg_size_pretty(replay_lag), 'N/A'),
-            coalesce(replay_age::text, 'N/A'))
-    ELSE 'Not in recovery' END
-FROM filter;
+    )
+FROM info;
 EOF
 )
 
-message=$(
-    $PSQL -XAt -c "$sql" $LAG_DBNAME 2>&1) || \
-    die "Can not check the lag: $message."
+src=$($PSQL -XAt -F ' ' -c "$sql" $LAG_DBNAME 2>&1) ||
+    die "Can not get a lag data for $LAG_DSN: $src."
 
-message=$(echo -e "$message" | sed '${/^$/d;}')
+regex='(\S+) (\S+) (\S+) (\S+) (\S+)'
 
-[ -z "$message" ] || die "Replication lag for $LAG_DSN:\n$message"
+[[ $src =~ $regex ]] || die "Can not match the lag data for $LAG_DSN: $src."
 
-info "Replication lag doesn't exceed threasholds."
+receive_lag=${BASH_REMATCH[1]}
+replay_lag=${BASH_REMATCH[2]}
+replay_age=${BASH_REMATCH[3]}
+in_recovery=${BASH_REMATCH[4]}
+
+if [[ ${BASH_REMATCH[5]} == 't' ]]; then
+    warn "Replication lag exceeds a threashold or replica is not in recovery" \
+         "for $LAG_DSN."
+    out='warn'
+else
+    out='info'
+fi
+
+$out "Lag for $LAG_DSN, B: receive $receive_lag, replay $replay_lag."
+$out "Time lag for $LAG_DSN, ms: value $replay_age."
+$out "In recovery for $LAG_DSN: value $in_recovery."
