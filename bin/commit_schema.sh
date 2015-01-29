@@ -68,14 +68,28 @@ EOF
     )
 
     if [ -z "$SCHEMA_SSH_KEY" ]; then
-        error=$(bash -c "$commit_cmd" 2>&1) || \
-            die "Can not commit changes: $error."
+        message=$(bash -c "$commit_cmd" 2>&1) || \
+            die "Can not commit changes: $message."
     else
-        error=$(
+        message=$(
             $SSHAGENT bash \
             -c "$SSHADD $SCHEMA_SSH_KEY && $commit_cmd" 2>&1) || \
-            die "Can not commit changes: $error."
+            die "Can not commit changes: $message."
     fi
 
-    info "Changes has been commited."
+    regexp='(\S+) files? changed(, (\S+) insertions?...)?(, (\S+) deletions?...)?'
+
+    if [[ $message =~ $regexp ]]; then
+        files_count=${BASH_REMATCH[1]}
+        insert_count=${BASH_REMATCH[3]}
+        delete_count=${BASH_REMATCH[5]}
+
+        info "Changes commited and pushed."
+    else
+        info "No changes found."
+    fi
+
+    info "Commited changes:" \
+         "files ${files_count:-N/A}, insertions ${insert_count:-N/A}," \
+         "deletions ${delete_count:-N/A}."
 fi
