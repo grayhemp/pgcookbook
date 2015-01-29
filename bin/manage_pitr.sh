@@ -29,6 +29,10 @@ if $PITR_WAL; then
         flock -xn 544
         if [ $? != 0 ]; then
             info "Exiting due to another running instance."
+
+            wal_count=$(ls -1 $PITR_WAL_ARCHIVE_DIR | wc -l)
+            info "WAL files in archive: count $wal_count."
+
             exit 0
         fi
 
@@ -39,10 +43,11 @@ if $PITR_WAL; then
             grep -v grep >/dev/null && \
             die "Problem with acquiring the lock."
 
+        info "Staring WAL streaming."
+
         error=$($PGRECEIVEXLOG -n -D $PITR_WAL_ARCHIVE_DIR 2>&1) || \
             die "Problem occured during WAL archiving: $error."
 
-        info "WAL streaming started."
     ) 544>$PITR_WAL_RECEIVER_LOCK_FILE
 else
     if [ -z "$PITR_LOCAL_DIR" ]; then
@@ -50,6 +55,8 @@ else
     fi
 
     backup_dir=$(date +%Y%m%d)
+
+    base_backup_start_time=$(timer)
 
     error=$(mkdir -p $PITR_ARCHIVE_DIR 2>&1) || \
         die "Can not make archive directory: $error."
@@ -61,13 +68,19 @@ else
                           -D $PITR_LOCAL_DIR/$backup_dir 2>&1) || \
         die "Can not make base backup: $error."
 
+    base_backup_time=$(timer $base_backup_start_time)
+
     info "Base backup $backup_dir has been made."
 
     if [ $PITR_ARCHIVE_DIR != $PITR_LOCAL_DIR ]; then
+        sync_start_time=$(timer)
+
         error=$($RSYNC $PITR_LOCAL_DIR/$backup_dir $PITR_ARCHIVE_DIR 2>&1) || \
             die "Can not move base backup to archive: $error."
         error=$(rm -r $PITR_LOCAL_DIR/$backup_dir 2>&1) || \
             die "Can not clean base backup locally: $error."
+
+        sync_time=$(timer $sync_start_time)
 
         info "Base backup $backup_dir has been archived."
     fi
@@ -78,12 +91,20 @@ else
 
     for dir in $(ls -1 $PITR_ARCHIVE_DIR); do
         if ! contains "$keep_list" $dir; then
+            base_backup_clean_start_time=$(timer)
+
             error=$(rm -r $PITR_ARCHIVE_DIR/$dir 2>&1) || \
                 die "Can not remove obsolete base backup $dir: $error."
+
+            base_backup_clean_time=$((
+                ${base_backup_clean_time:-0} +
+                $(timer $base_backup_clean_time) ))
 
             info "Obsolete base backup $dir has been removed."
         fi
     done
+
+    wal_clean_start_time=$(timer)
 
     oldest=$((ls -1t $PITR_ARCHIVE_DIR | tail -n 1) 2>&1) || \
         die "Can not find the oldest base backup: $oldest."
@@ -93,5 +114,12 @@ else
         ! -name *.partial ! -cnewer $PITR_ARCHIVE_DIR/$oldest -delete 2>&1) || \
         die "Can not delete old WAL files from archive: $error."
 
+    wal_clean_time=$(timer $wal_clean_start_time)
+
     info "Obsolete WAL files have been cleaned."
+
+    info "Execution time, s:" \
+         "base backup ${base_backup_time:-N/A}, sync ${sync_time:-N/A}," \
+         "base backup clean ${base_backup_clean_time:-N/A}," \
+         "wal_clean_time ${wal_clean_time:-N/A}."
 fi
