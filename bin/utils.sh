@@ -41,3 +41,7 @@ function contains() {
 
     return 1
 }
+
+function timer() {
+    echo $(( $(date '+%s') - ${1:-0} ))
+}
