@@ -24,6 +24,8 @@ fi
 
 dump_dir=$(date +%Y%m%d)
 
+dump_start_time=$(timer)
+
 error=$(mkdir -p $DUMPS_ARCHIVE_DIR 2>&1) || \
     die "Can not make archive directory: $error."
 
@@ -39,13 +41,19 @@ for dbname in $DUMPS_DBNAME_LIST; do
         die "Can not dump database $dbname: $error."
 done
 
+dump_time=$(timer $dump_start_time)
+
 info "Dump $dump_dir has been made."
 
 if [ $DUMPS_ARCHIVE_DIR != $DUMPS_LOCAL_DIR ]; then
+    sync_start_time=$(timer)
+
     error=$($RSYNC $DUMPS_LOCAL_DIR/$dump_dir $DUMPS_ARCHIVE_DIR 2>&1) || \
         die "Can not copy dumps to archive: $error."
     error=$(rm -r $DUMPS_LOCAL_DIR/$dump_dir 2>&1) || \
         die "Can not clean local dumps: $error."
+
+    sync_time=$(timer $sync_start_time)
 
     info "Dump $dump_dir has been archived."
 fi
@@ -70,9 +78,16 @@ dump_list=$($PSQL -XAt -c "$sql" postgres 2>&1) || \
 
 for dir in $(ls -1 $DUMPS_ARCHIVE_DIR); do
     if ! contains "$dump_list" $dir && [[ $dir =~ ^[0-9]{8}$ ]]; then
+        clean_start_time=$(timer)
+
         error=$(rm -r $DUMPS_ARCHIVE_DIR/$dir 2>&1) || \
             die "Can not remove obsolete dump $dir: $error."
+
+        clean_time=$(( ${clean_time:-0} + $(timer $clean_start_time) ))
 
         info "Obsolete dump $dir has been removed."
     fi
 done
+
+info "Execution time, s:" \
+     "dump ${dump_time:-N/A}, sync ${sync_time:-N/A}, clean ${clean_time:-N/A}."
