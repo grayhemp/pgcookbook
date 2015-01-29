@@ -28,15 +28,14 @@ pid_column=$($PSQL -XAt -c "$sql" postgres 2>&1) || \
 
 sql=$(cat <<EOF
 SELECT
-    pg_terminate_backend($pid_column),
+    pg_terminate_backend($pid_column) AS success,
     now() - xact_start AS xact_duration, *
 FROM pg_stat_activity
 WHERE $TERMINATE_CONDITIONS
 EOF
 )
 
-message=$(
-    $PSQL -XAtx -F ': ' -c "$sql" postgres 2>&1) || \
+message=$($PSQL -XAtx -F ' ' -P 'null=N/A' -c "$sql" postgres 2>&1) || \
     die "Can not run the terminating SQL: $message."
 
 message=$(echo -e "$message" | sed '${/^$/d;}')
