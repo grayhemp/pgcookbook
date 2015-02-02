@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# stat_instance.sh - PostgreSQL instance statistics collecting script.
+# stat_postgres.sh - PostgreSQL instance statistics collecting script.
 #
 # Collects a variety of postgres related statistics. Compatible with
 # PostgreSQL >=9.2.
