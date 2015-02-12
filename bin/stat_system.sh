@@ -434,3 +434,39 @@ for iface in $iface_list; do
             die "Can not save the network snapshot for $iface: $error."
     )
 done
+
+# top programs by CPU
+
+list=$(
+    ps -eo comm,pcpu --no-headers \
+    | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
+    | sort -k 2n | tail -n 5 | paste -sd ',' | sed 's/,/, /g')
+
+info "Top programs by CPU, %: $list."
+
+# top programs by RSS
+
+list=$(
+    ps -eo comm,pmem --no-headers \
+    | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
+    | sort -k 2n | tail -n 5 | paste -sd ',' | sed 's/,/, /g')
+
+info "Top programs by RSS, %: $list."
+
+# top programs by precesse count
+
+list=$(
+    ps -eo comm --no-headers | sort | uniq -c \
+    | awk '{ arr[$2] += $1 } END { for (i in arr) { print i, arr[i] } }' \
+    | sort -k 2n | tail -n 5 | paste -sd ',' | sed 's/,/, /g')
+
+info "Top programs by process count: $list."
+
+# top programs by thread count
+
+list=$(
+    ps -eo comm,nlwp --no-headers \
+    | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
+    | sort -k 2n | tail -n 5 | paste -sd ',' | sed 's/,/, /g')
+
+info "Top programs by thread count: $list."
