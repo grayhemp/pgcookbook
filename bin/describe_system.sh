@@ -119,26 +119,28 @@ done
 
 # network interface MTU, status, MAC, IP, IPv6
 
-src_list=$(ip addr 2>&1) ||
-    die "Can not get a network interface source list: $src_list."
-src_list=$(echo $src_list | sed -r 's/\S+: \S+:/\n\0/g' | sed '/^$/d;')
+(
+    src_list=$(ip addr 2>&1) ||
+        die "Can not get a network interface source list: $src_list."
+    src_list=$(echo $src_list | sed -r 's/\S+: \S+:/\n\0/g' | sed '/^$/d;')
 
-while read src; do
-    (
-        [[ $src =~ $(echo ': (\S+):') ]] ||
-            die "Can not match the network interface name: $src."
-        name=${BASH_REMATCH[1]}
+    while read src; do
+        (
+            [[ $src =~ $(echo ': (\S+):') ]] ||
+                die "Can not match the network interface name: $src."
+            name=${BASH_REMATCH[1]}
 
-        [[ $src =~ $(echo 'mtu (\S+)') ]]; mtu=${BASH_REMATCH[1]:-'N/A'}
-        [[ $src =~ $(echo 'state (\S+)') ]]; state=${BASH_REMATCH[1]:-'N/A'}
-        [[ $src =~ $(echo 'link/\S+ (\S+)') ]]; link=${BASH_REMATCH[1]:-'N/A'}
-        [[ $src =~ $(echo 'inet (\S+)') ]]; inet=${BASH_REMATCH[1]:-'N/A'}
-        [[ $src =~ $(echo 'inet6 (\S+)') ]]; inet6=${BASH_REMATCH[1]:-'N/A'}
+            [[ $src =~ $(echo 'mtu (\S+)') ]]; mtu=${BASH_REMATCH[1]:-'N/A'}
+            [[ $src =~ $(echo 'state (\S+)') ]]; state=${BASH_REMATCH[1]:-'N/A'}
+            [[ $src =~ $(echo 'link/\S+ (\S+)') ]]; link=${BASH_REMATCH[1]:-'N/A'}
+            [[ $src =~ $(echo 'inet (\S+)') ]]; inet=${BASH_REMATCH[1]:-'N/A'}
+            [[ $src =~ $(echo 'inet6 (\S+)') ]]; inet6=${BASH_REMATCH[1]:-'N/A'}
 
-        info "Network interface for $name:" \
-             "mtu $mtu, state $state, link $link, inet $inet, inet6 $inet6."
-    )
-done <<< "$src_list"
+            info "Network interface for $name:" \
+                 "mtu $mtu, state $state, link $link, inet $inet, inet6 $inet6."
+        )
+    done <<< "$src_list"
+)
 
 # custom kernel settings
 
