@@ -84,12 +84,10 @@ EOF
         insert_count=${BASH_REMATCH[3]}
         delete_count=${BASH_REMATCH[5]}
 
-        info "Changes commited and pushed."
+        info "Commited changes:" \
+             "files ${files_count:-N/A}, insertions ${insert_count:-N/A}," \
+             "deletions ${delete_count:-N/A}."
     else
         info "No changes found."
     fi
-
-    info "Commited changes:" \
-         "files ${files_count:-N/A}, insertions ${insert_count:-N/A}," \
-         "deletions ${delete_count:-N/A}."
 fi
