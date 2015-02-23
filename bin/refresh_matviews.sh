@@ -73,10 +73,10 @@ EOF
 
 for db in $MATVIEWS_DBNAME_LIST; do
     dml=$($PSQL -XAt -c "$sql" $db 2>&1) || \
-        die "Can not get a DML to refresh materialized views: $dml."
+        die "Can not get a DML to refresh materialized views for $db: $dml."
 
     if [ -z "$dml" ]; then
-        info "No materialized views to refresh."
+        info "No materialized views to refresh for $db."
     else
         refresh_start_time=$(timer)
 
