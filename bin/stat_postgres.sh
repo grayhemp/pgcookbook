@@ -481,7 +481,7 @@ EOF
     db_list=$(
         $PSQL -XAt -c "SELECT datname FROM pg_database WHERE datallowconn"
         2>&1) ||
-        die "Can not get a database list: $src."
+        die "Can not get a database list: $db_list."
 
     regex='all tables stat (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)'
 
