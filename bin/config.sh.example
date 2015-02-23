@@ -165,7 +165,7 @@ LAG_REPLAY_AGE='5 minutes'
 
 # refresh_matviews.sh
 
-MATVIEWS_DBNAME=${MATVIEWS_DBNAME:-}
+MATVIEWS_DBNAME_LIST='dbname1 dbname2'
 
 # commit_schema.sh
 
