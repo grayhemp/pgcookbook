@@ -616,5 +616,64 @@ bash bin/refresh_matviews.sh
 
 */
 
+-- describe_postgres.sh
+
+SELECT
+    nspname, relname,
+    CASE WHEN size::real > 0 THEN
+        round(
+            100 * (
+                1 - (pure_page_count * 100 / fillfactor) / (size::real / bs)
+            )::numeric, 2
+        )
+    ELSE 0 END AS v
+FROM (
+    SELECT
+        nspname, relname,
+        bs, size, fillfactor,
+        ceil(
+            reltuples * (
+                max(stanullfrac) * ma * ceil(
+                    (
+                        ma * ceil(
+                            (
+                                header_width +
+                                ma * ceil(count(1)::real / ma)
+                            )::real / ma
+                        ) + sum((1 - stanullfrac) * stawidth)
+                    )::real / ma
+                ) +
+                (1 - max(stanullfrac)) * ma * ceil(
+                    (
+                        ma * ceil(header_width::real / ma) +
+                        sum((1 - stanullfrac) * stawidth)
+                    )::real / ma
+                )
+            )::real / (bs - 24)
+        ) AS pure_page_count
+    FROM (
+        SELECT
+            c.oid AS class_oid,
+            n.nspname, c.relname, c.reltuples,
+            23 AS header_width, 8 AS ma,
+            current_setting('block_size')::integer AS bs,
+            pg_relation_size(c.oid) AS size,
+            coalesce((
+                SELECT (
+                    regexp_matches(
+                        c.reloptions::text, E'.*fillfactor=(\\d+).*'))[1]),
+                '100')::real AS fillfactor
+        FROM pg_class AS c
+        JOIN pg_namespace AS n ON n.oid = c.relnamespace
+        WHERE c.relkind IN ('r', 't')
+    ) AS const
+    LEFT JOIN pg_catalog.pg_statistic ON starelid = class_oid
+    GROUP BY
+        bs, class_oid, fillfactor, ma, size, reltuples, header_width,
+        nspname, relname
+) AS sq
+WHERE pure_page_count IS NOT NULL
+ORDER BY 3 DESC
+LIMIT 5;
 
 --
