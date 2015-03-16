@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# describe_postgres.sh - provides details about a postgres instance.
+# describe_postgres.sh - provides details about a PostgreSQL instance.
 #
 # Prints out version, tablespaces, custom settings, etc.
 #
