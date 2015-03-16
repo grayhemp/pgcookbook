@@ -63,7 +63,7 @@ DUMPS_KEEP_MONTHLY_PARTS='1 year'
 RESTORE_DROP=${RESTORE_DROP:-true}
 RESTORE_DBNAME=${RESTORE_DBNAME:-'dbname1_latest'}
 RESTORE_FILE=${RESTORE_FILE:-$(
-    find $DUMPS_ARCHIVE_DIR -maxdepth 1 -mindepth 1 | \
+    find $DUMPS_ARCHIVE_DIR -maxdepth 1 -mindepth 1 2>/dev/null | \
     sort | tail -n 1)'/dbname1.dump.gz'}
 RESTORE_THREADS=4
 RESTORE_FILTER_SQL=$(cat <<EOF
