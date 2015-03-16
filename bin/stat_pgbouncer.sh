@@ -134,13 +134,33 @@ instance_dsn=$(
 
     result=$(
         echo "$result" | grep -v 'pgbouncer|pgbouncer' \
-             | sed -r 's/([^|]+?\|){2}/scale=2; 100 * /' | sed 's/|/\//' | bc \
-             | sort -nr | head -n 1 | awk '{printf "%.2f", $0}' )
+        | sed -r 's/([^|]+?\|){2}/scale=2; 100 * /' | sed 's/|/\//' | bc \
+        | sort -nr | head -n 1 | awk '{printf "%.2f", $0}' )
 
     result=${result:-'N/A'}
 
     info "Max databse/user pool utilization for $instance_dsn, %:" \
          "value $result."
+)
+
+# per database/user pool utilization
+
+(
+    result=$(
+        join -t '|' -o '2.1 2.2 2.3 1.2' \
+            <($PSQL -XAtc 'SHOW DATABASES' pgbouncer \
+              | cut -d '|' -f 4,6 | sort) \
+            <($PSQL -XAtc 'SHOW POOLS' pgbouncer \
+              | cut -d '|' -f 1,2,3 | sort) 2>&1) || \
+        die "Can not get a pool utilization data for $instance_dsn: $result."
+
+    result=$(
+        echo "$result" | grep -v 'pgbouncer|pgbouncer' \
+        | sed -r 's/(.+)([0-9]+)\|([0-9]+)/scale=2; print "\1", 100 * \2\/\3, "\n"/' \
+        | sed -r 's/\|/ /g' | bc | sort -k 3nr | head -n 5 \
+        | paste -sd ',' | sed -r 's/,/, /g')
+
+    info "Per databse/user pool utilization for $instance_dsn: $result."
 )
 
 # client pool utilization
