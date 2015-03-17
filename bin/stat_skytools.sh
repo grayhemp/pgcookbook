@@ -22,7 +22,6 @@ source $(dirname $0)/utils.sh
 # max queue ticker lag
 # max queue ticker lag fraction of idle period
 # total queue events per second
-
 # max consumers lag
 # max consumers last seen age
 # total consumer pending events
