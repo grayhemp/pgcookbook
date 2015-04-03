@@ -425,7 +425,9 @@ END $$;
 
 rm -r /mnt/archive/parts
 mkdir -p /mnt/archive/parts
+
 bash bin/archive_tables.sh
+
 ls -l /mnt/archive/parts/*
 
 */
@@ -528,7 +530,7 @@ SCHEMA_SSH_KEY='/tmp/_repo_id_rsa' bash bin/commit_schema.sh
 
 \c dbname1
 --
-CREATE SCHEMA schema2;
+DROP SCHEMA schema2;
 
 /*
 
