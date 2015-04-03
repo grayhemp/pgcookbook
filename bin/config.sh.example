@@ -18,6 +18,11 @@
 
 # Common settings for all the scripts
 
+# plain: plain log (default)
+# kv: key/value pairs
+# json: JSON
+LOG_FORMAT=${LOG_FORMAT:-'plain'}
+
 HOST=${HOST:-}
 PORT=${PORT:-}
 USER=${USER:-}
@@ -172,13 +177,13 @@ MATVIEWS_DBNAME_LIST='dbname1 dbname2'
 SCHEMA_DBNAME_LIST='dbname1 dbname2'
 SCHEMA_DIR='/mnt/archive/repo'
 SCHEMA_EXCLUDE_SCHEMA_SQL=$(cat <<EOF
-    SELECT nspname FROM pg_namespace
-    WHERE nspname ~ '^(pgq.*|londiste)$'
+SELECT nspname FROM pg_namespace
+WHERE nspname ~ '^(pgq.*|londiste)$'
 EOF
 )
 SCHEMA_EXCLUDE_TABLE_SQL=$(cat <<EOF
-    SELECT schemaname, tablename FROM pg_tables
-    WHERE schemaname = 'partitions'
+SELECT schemaname, tablename FROM pg_tables
+WHERE schemaname = 'partitions'
 EOF
 )
 SCHEMA_SSH_KEY=${SCHEMA_SSH_KEY:-}
