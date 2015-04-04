@@ -26,36 +26,58 @@ dump_dir=$(date +%Y%m%d)
 
 dump_start_time=$(timer)
 
-error=$(mkdir -p $DUMPS_ARCHIVE_DIR 2>&1) || \
-    die "Can not make archive directory: $error."
+error=$(mkdir -p $DUMPS_ARCHIVE_DIR 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not make an archive directory'
+        ['2m/error']=$error))"
 
-error=$(mkdir -p $DUMPS_LOCAL_DIR/$dump_dir 2>&1) || \
-    die "Can not make $dump_dir dumps directory locally: $error."
+error=$(mkdir -p $DUMPS_LOCAL_DIR/$dump_dir 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not make a dump directory locally'
+        ['2/dump_dir']=$dump_dir
+        ['3m/error']=$error))"
 
-error=$($PGDUMPALL -g -f $DUMPS_LOCAL_DIR/$dump_dir/globals.sql 2>&1) || \
-    die "Can not dump globals: $error."
+error=$($PGDUMPALL -g -f $DUMPS_LOCAL_DIR/$dump_dir/globals.sql 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not dump globals'
+        ['2m/error']=$error))"
 
 for dbname in $DUMPS_DBNAME_LIST; do
-    error=$($PGDUMP -f $DUMPS_LOCAL_DIR/$dump_dir/$dbname.dump.gz \
-                    -F c -Z 2 $dbname 2>&1) || \
-        die "Can not dump database $dbname: $error."
+    error=$(
+        $PGDUMP -f $DUMPS_LOCAL_DIR/$dump_dir/$dbname.dump.gz \
+            -F c -Z 2 $dbname 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not dump the database'
+            ['2/database']=$dbname
+            ['3m/error']=$error))"
 done
 
 dump_time=$(timer $dump_start_time)
 
-info "Dump $dump_dir has been made."
+info "$(declare -pA a=(
+    ['1/message']='Dump has been made'
+    ['2/dump_dir']=$dump_dir))"
 
-if [ $DUMPS_ARCHIVE_DIR != $DUMPS_LOCAL_DIR ]; then
+if [[ $DUMPS_ARCHIVE_DIR != $DUMPS_LOCAL_DIR ]]; then
     sync_start_time=$(timer)
 
     error=$($RSYNC $DUMPS_LOCAL_DIR/$dump_dir $DUMPS_ARCHIVE_DIR 2>&1) || \
-        die "Can not copy dumps to archive: $error."
+        die "$(declare -pA a=(
+            ['1/message']='Can not copy the dump directory to archive'
+            ['2/dump_dir']=$dump_dir
+            ['3m/error']=$error))"
+
     error=$(rm -r $DUMPS_LOCAL_DIR/$dump_dir 2>&1) || \
-        die "Can not clean local dumps: $error."
+        die "$(declare -pA a=(
+            ['1/message']='Can not remove the local dump directory'
+            ['2/dump_dir']=$dump_dir
+            ['3m/error']=$error))"
 
     sync_time=$(timer $sync_start_time)
 
-    info "Dump $dump_dir has been archived."
+    info "$(declare -pA a=(
+        ['1/message']='Dump has been archived'
+        ['2/dump_dir']=$dump_dir))"
 fi
 
 sql=$(cat <<EOF
@@ -74,20 +96,30 @@ EOF
 )
 
 dump_list=$($PSQL -XAt -c "$sql" postgres 2>&1) || \
-    die "Can not get dump list: $dump_list."
+    die "$(declare -pA a=(
+        ['1/message']='Can not get a dump list'
+        ['2m/error']=$error))"
 
 for dir in $(ls -1 $DUMPS_ARCHIVE_DIR); do
     if ! contains "$dump_list" $dir && [[ $dir =~ ^[0-9]{8}$ ]]; then
-        clean_start_time=$(timer)
+        rotation_start_time=$(timer)
 
         error=$(rm -r $DUMPS_ARCHIVE_DIR/$dir 2>&1) || \
-            die "Can not remove obsolete dump $dir: $error."
+            die "$(declare -pA a=(
+                ['1/message']='Can not remove the obsolete dump'
+                ['2/dir']=$dir
+                ['3m/error']=$error))"
 
-        clean_time=$(( ${clean_time:-0} + $(timer $clean_start_time) ))
+        rotation_time=$(( ${rotation_time:-0} + $(timer $rotation_start_time) ))
 
-        info "Obsolete dump $dir has been removed."
+        info "$(declare -pA a=(
+            ['1/message']='Obsolete dump has been removed'
+            ['2/dir']=$dir))"
     fi
 done
 
-info "Execution time, s:" \
-     "dump ${dump_time:-N/A}, sync ${sync_time:-N/A}, clean ${clean_time:-N/A}."
+info "$(declare -pA a=(
+    ['1/message']='Execution time, s'
+    ['2/dump_time']=${dump_time:-null}
+    ['3/sync_time']=${sync_time:-null}
+    ['4/rotation_time']=${rotation_time:-null}))"

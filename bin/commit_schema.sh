@@ -24,7 +24,7 @@ source $(dirname $0)/utils.sh
 [[ ! -z "$SCHEMA_ACTION" ]] && ! contains 'dump commit' "$SCHEMA_ACTION"  && \
     die "$(declare -pA a=(
         ['1/message']='Wrong SCHEMA_ACTION specified'
-        ['2/value']=$SCHEMA_ACTION))"
+        ['2/schema_action']=$SCHEMA_ACTION))"
 
 if [[ "$SCHEMA_ACTION" == 'dump' ]] || [[ -z "$SCHEMA_ACTION" ]]; then
     error=$(mkdir -p $SCHEMA_DIR 2>&1) ||
