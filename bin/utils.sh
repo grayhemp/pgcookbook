@@ -118,7 +118,7 @@ function to_plain() {
         local key_flags="${BASH_REMATCH[1]}"
         local key_name="${BASH_REMATCH[2]}"
 
-        if ! contains 'timestamp host facility level pid' "$key_name"; then
+        if ! contains 'timestamp host facility level pid message' "$key_name"; then
             echo -n "$(to_plain_token "$key_name")="
         fi
 
@@ -127,6 +127,8 @@ function to_plain() {
             echo -ne "${arr[$key]}"
             echo -ne "\nEOS"
             (( ${#arr[@]} != $index )) && echo -ne "\n"
+        elif [[ "$key_name" == 'message' ]]; then
+            echo -n "${arr[$key]}:"
         elif contains 'timestamp host facility level pid' "$key_name"; then
             echo -n "${arr[$key]}"
         else
