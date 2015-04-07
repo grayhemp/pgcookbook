@@ -8,6 +8,8 @@
 
 set -o pipefail
 
+source $(dirname $0)/config.sh
+
 # Logging
 
 function die() {

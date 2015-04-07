@@ -288,7 +288,7 @@ CREATE TABLE test_process_until_0 (i integer);
 
 /*
 
-bash process_until_0.sh <<EOF
+bash bin/process_until_0.sh <<EOF
 INSERT INTO test_process_until_0 SELECT g.i
 FROM generate_series(0, 99) AS g(i)
 LEFT JOIN test_process_until_0 AS t ON t.i = g.i
@@ -296,12 +296,12 @@ WHERE t.i IS NULL
 LIMIT 10;
 EOF
 
-bash process_until_0.sh <<EOF
+bash bin/process_until_0.sh <<EOF
 UPDATE test_process_until_0 SET i = i + 100
 WHERE i IN (SELECT i FROM test_process_until_0 WHERE i < 100 LIMIT 10);
 EOF
 
-bash process_until_0.sh <<EOF
+bash bin/process_until_0.sh <<EOF
 DELETE FROM test_process_until_0
 WHERE i IN (SELECT i FROM test_process_until_0 LIMIT 10);
 EOF
