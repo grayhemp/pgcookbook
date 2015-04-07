@@ -35,15 +35,33 @@ EOF
 )
 
 lsn_type=$($PSQL -XAt -c "$sql" $LAG_DBNAME 2>&1) || \
-    die "Can not get an lsn type: $lsn_type."
+    die "$(declare -pA a=(
+        ['1/message']='Can not check the lsn type'
+        ['2m/error']=$lsn_type))"
+
+# Use the direct check instead of IF NOT EXISTS to not get it in logs
+sql=$(cat <<EOF
+DO \$do\$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_extension WHERE extname = 'dblink')
+    THEN
+        CREATE EXTENSION dblink;
+    END IF;
+END \$do\$;
+EOF
+)
 
 error=$(
-    $PSQL -XAt -c "CREATE EXTENSION IF NOT EXISTS dblink;" \
-    $LAG_DBNAME 2>&1) || \
-    die "Can not create environment: $error."
+    $PSQL -XAt -c "$sql" $LAG_DBNAME 2>&1) || \
+    die "$(declare -pA a=(
+        ['1/message']='Can not create the dblink extension'
+        ['2m/error']=$error))"
 
 error=$($PSQL -XAt -c "SELECT txid_current();" $LAG_DBNAME 2>&1) || \
-    die "Can not generale a minimal WAL record: $error."
+    die "$(declare -pA a=(
+        ['1/message']='Can not generale a minimal WAL record'
+        ['2m/error']=$error))"
 
 sql=$(cat <<EOF
 WITH info AS (
@@ -69,10 +87,10 @@ WITH info AS (
     )
 )
 SELECT
-    coalesce(receive_lag::text, 'N/A'),
-    coalesce(replay_lag::text, 'N/A'),
-    coalesce((extract(epoch from replay_age) * 1000)::integer::text, 'N/A'),
-    in_recovery,
+    receive_lag::text,
+    replay_lag::text,
+    (extract(epoch from replay_age) * 1000)::integer::text,
+    in_recovery::text,
     (
         NOT in_recovery OR
         receive_lag IS NULL OR receive_lag > $LAG_RECEIVE OR
@@ -83,8 +101,11 @@ FROM info;
 EOF
 )
 
-src=$($PSQL -XAt -F ' ' -c "$sql" $LAG_DBNAME 2>&1) ||
-    die "Can not get a lag data for $LAG_DSN: $src."
+src=$($PSQL -XAt -F ' ' -P 'null=null' -c "$sql" $LAG_DBNAME 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not get a lag data'
+        ['2/dsn']=$LAG_DSN
+        ['3m/error']=$src))"
 
 regex='(\S+) (\S+) (\S+) (\S+) (\S+)'
 
@@ -96,13 +117,26 @@ replay_age=${BASH_REMATCH[3]}
 in_recovery=${BASH_REMATCH[4]}
 
 if [[ ${BASH_REMATCH[5]} == 't' ]]; then
-    warn "Replication lag exceeds a threashold or replica is not in recovery" \
-         "for $LAG_DSN."
+    warn "$(declare -pA a=(
+        ['1/message']='Replica lags behind the threashold or is not in recovery'
+        ['2/dsn']=$LAG_DSN))"
     out='warn'
 else
     out='info'
 fi
 
-$out "Lag for $LAG_DSN, B: receive $receive_lag, replay $replay_lag."
-$out "Time lag for $LAG_DSN, ms: value $replay_age."
-$out "In recovery for $LAG_DSN: value $in_recovery."
+$out "$(declare -pA a=(
+    ['1/message']='Byte lag, B'
+    ['2/dsn']=$LAG_DSN
+    ['3/receive_lag']=$receive_lag
+    ['4/replay_lag']=$replay_lag))"
+
+$out "$(declare -pA a=(
+    ['1/message']='Time lag, B'
+    ['2/dsn']=$LAG_DSN
+    ['3/replay_age']=$replay_age))"
+
+$out "$(declare -pA a=(
+    ['1/message']='In recovery'
+    ['2/dsn']=$LAG_DSN
+    ['3/in_recovery']=$in_recovery))"
