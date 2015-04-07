@@ -22,16 +22,22 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 if $PITR_WAL; then
-    error=$(mkdir -p $PITR_WAL_ARCHIVE_DIR 2>&1) || \
-        die "Can not make wal directory $PITR_WAL_ARCHIVE_DIR: $error."
+    error=$(mkdir -p $PITR_WAL_ARCHIVE_DIR 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not make a wal directory'
+            ['2/wal_archive_dir']=$PITR_WAL_ARCHIVE_DIR
+            ['3m/detail']=$error))"
 
     (
         flock -xn 544
         if [ $? != 0 ]; then
-            info "Exiting due to another running instance."
+            info "$(declare -pA a=(
+                ['1/message']='Exiting due to another running instance'))"
 
             wal_count=$(ls -1 $PITR_WAL_ARCHIVE_DIR | wc -l)
-            info "WAL files in archive: count $wal_count."
+            info "$(declare -pA a=(
+                ['1/message']='WAL files in archive'
+                ['2/count']=$wal_count))"
 
             exit 0
         fi
@@ -40,13 +46,17 @@ if $PITR_WAL; then
         # refuses to work when archiving to NFS mount point and
         # experiencing network problems
         ps ax | grep pg_receivexlog | grep "$PITR_WAL_ARCHIVE_DIR" | \
-            grep -v grep >/dev/null && \
-            die "Problem with acquiring the lock."
+            grep -v grep >/dev/null &&
+            die "$(declare -pA a=(
+                ['1/message']='Unknown problem with acquiring a lock'))"
 
-        info "Staring WAL streaming."
+        info "$(declare -pA a=(
+            ['1/message']='Staring a WAL streaming'))"
 
-        error=$($PGRECEIVEXLOG -n -D $PITR_WAL_ARCHIVE_DIR 2>&1) || \
-            die "Problem occured during WAL archiving: $error."
+        error=$($PGRECEIVEXLOG -n -D $PITR_WAL_ARCHIVE_DIR 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Problem with the WAL streaming'
+                ['2m/detail']=$error))"
     ) 544>$PITR_WAL_RECEIVER_LOCK_FILE
 else
     if [ -z "$PITR_LOCAL_DIR" ]; then
@@ -57,68 +67,102 @@ else
 
     base_backup_start_time=$(timer)
 
-    error=$(mkdir -p $PITR_ARCHIVE_DIR 2>&1) || \
-        die "Can not make archive directory: $error."
+    error=$(mkdir -p $PITR_ARCHIVE_DIR 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not make an archive directory'
+            ['2/archive_dir']=$PITR_ARCHIVE_DIR
+            ['3m/detail']=$error))"
 
-    error=$(mkdir -p $PITR_LOCAL_DIR/$backup_dir 2>&1) || \
-        die "Can not make directory $backup_dir locally: $error."
+    error=$(mkdir -p $PITR_LOCAL_DIR/$backup_dir 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not make a base backup directory locally'
+            ['2/backup_dir']=$backup_dir
+            ['3m/detail']=$error))"
 
-    error=$($PGBASEBACKUP -F t -Z 2 -c fast -x \
-                          -D $PITR_LOCAL_DIR/$backup_dir 2>&1) || \
-        die "Can not make base backup: $error."
+    error=$(
+        $PGBASEBACKUP -F t -Z 2 -c fast -x -D $PITR_LOCAL_DIR/$backup_dir \
+        2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not make a base backup'
+            ['2m/detail']=$error))"
 
     base_backup_time=$(timer $base_backup_start_time)
 
-    info "Base backup $backup_dir has been made."
+    info "$(declare -pA a=(
+        ['1/message']='Base backup has been made'
+        ['2/backup_dir']=$backup_dir))"
 
     if [ $PITR_ARCHIVE_DIR != $PITR_LOCAL_DIR ]; then
         sync_start_time=$(timer)
 
-        error=$($RSYNC $PITR_LOCAL_DIR/$backup_dir $PITR_ARCHIVE_DIR 2>&1) || \
-            die "Can not move base backup to archive: $error."
-        error=$(rm -r $PITR_LOCAL_DIR/$backup_dir 2>&1) || \
-            die "Can not clean base backup locally: $error."
+        error=$($RSYNC $PITR_LOCAL_DIR/$backup_dir $PITR_ARCHIVE_DIR 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not copy the base backup directory to archive'
+                ['2/backup_dir']=$backup_dir
+                ['3m/detail']=$error))"
+
+        error=$(rm -r $PITR_LOCAL_DIR/$backup_dir 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not remove the local base backup directory'
+                ['2/backup_dir']=$backup_dir
+                ['3m/detail']=$error))"
 
         sync_time=$(timer $sync_start_time)
 
-        info "Base backup $backup_dir has been archived."
+        info "$(declare -pA a=(
+            ['1/message']='Base backup has been archived'
+            ['2/backup_dir']=$backup_dir))"
     fi
 
     keep_list=$( \
-        (ls -1t $PITR_ARCHIVE_DIR | head -n $PITR_KEEP_BACKUPS) 2>&1) || \
-        die "Can not get a list of base backups to keep: $keep_list."
+        (ls -1t $PITR_ARCHIVE_DIR | head -n $PITR_KEEP_BACKUPS) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a list of base backups to keep'
+            ['2m/detail']=$keep_list))"
 
     for dir in $(ls -1 $PITR_ARCHIVE_DIR); do
         if ! contains "$keep_list" $dir; then
-            base_backup_clean_start_time=$(timer)
+            base_backup_rotation_start_time=$(timer)
 
-            error=$(rm -r $PITR_ARCHIVE_DIR/$dir 2>&1) || \
-                die "Can not remove obsolete base backup $dir: $error."
+            error=$(rm -r $PITR_ARCHIVE_DIR/$dir 2>&1) ||
+                die "$(declare -pA a=(
+                    ['1/message']='Can not remove the obsolete base backup'
+                    ['2/backup_dir']=$dir
+                    ['3m/detail']=$error))"
 
-            base_backup_clean_time=$((
-                ${base_backup_clean_time:-0} +
-                $(timer $base_backup_clean_time) ))
+            base_backup_rotation_time=$((
+                ${base_backup_rotation_time:-0} +
+                $(timer $base_backup_rotation_start_time) ))
 
-            info "Obsolete base backup $dir has been removed."
+            info "$(declare -pA a=(
+                ['1/message']='Obsolete base backup has been removed'
+                ['2/backup_dir']=$dir))"
         fi
     done
 
-    wal_clean_start_time=$(timer)
+    wal_rotation_start_time=$(timer)
 
-    oldest=$((ls -1t $PITR_ARCHIVE_DIR | tail -n 1) 2>&1) || \
-        die "Can not find the oldest base backup: $oldest."
+    oldest=$((ls -1t $PITR_ARCHIVE_DIR | tail -n 1) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not find the oldest base backup'
+            ['2m/detail']=$oldest))"
 
-    error=$( \
+    error=$(
         find $PITR_WAL_ARCHIVE_DIR -ignore_readdir_race -type f \
-        ! -name *.partial ! -cnewer $PITR_ARCHIVE_DIR/$oldest -delete 2>&1) || \
-        die "Can not delete old WAL files from archive: $error."
+        ! -name *.partial ! -cnewer $PITR_ARCHIVE_DIR/$oldest -delete 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not delete old WAL files from archive'
+            ['2m/detail']=$error))"
 
-    wal_clean_time=$(timer $wal_clean_start_time)
+    wal_rotation_time=$(timer $wal_rotation_start_time)
 
-    info "Obsolete WAL files have been cleaned."
+    info "$(declare -pA a=(
+        ['1/message']='Obsolete WAL files have been cleaned'))"
 
-    info "Execution time, s:" \
-         "base backup ${base_backup_time:-N/A}, sync ${sync_time:-N/A}," \
-         "base backup clean ${base_backup_clean_time:-N/A}," \
-         "wal_clean_time ${wal_clean_time:-N/A}."
+    info "$(declare -pA a=(
+        ['1/message']='Execution time, s'
+        ['2/base_backup_time']=${base_backup_time:-null}
+        ['3/sync_time']=${sync_time:-null}
+        ['4/base_backup_rotation_time']=${base_backup_rotation_time:-null}
+        ['5/wal_rotation_time']=${wal_rotation_time:-null}))"
 fi
