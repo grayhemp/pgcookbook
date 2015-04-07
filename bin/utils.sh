@@ -211,9 +211,8 @@ function to_json() {
 function to_json_key() {
     if [[ -z "$1" ]]; then
         formatter='to_text'
-        declare -A a=(
-            ['1/message']=$(to_text_token "Empty JSON keys are not allowed."))
-        die "$(declare -p a)"
+        die "$(declare -A a=(
+            ['1/message']=$(to_text_token 'Empty JSON keys are not allowed')))"
     fi
 
     qq "$1"
@@ -235,9 +234,9 @@ if contains "plain kv json" "$LOG_FORMAT"; then
     formatter="to_$LOG_FORMAT"
 else
     formatter='to_plain'
-    declare -A a=(
-        ['1/message']="Wrong log format '$LOG_FORMAT'.")
-    die "$(declare -p a)"
+    die "$(declare -pA a=(
+        ['1/message']='Wrong log format'
+        ['2/log_format']=$LOG_FORMAT))"
 fi
 
 # Input
