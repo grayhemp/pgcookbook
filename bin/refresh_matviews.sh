@@ -72,18 +72,27 @@ EOF
 )
 
 for db in $MATVIEWS_DBNAME_LIST; do
-    dml=$($PSQL -XAt -c "$sql" $db 2>&1) || \
-        die "Can not get a DML to refresh materialized views for $db: $dml."
+    dml=$($PSQL -XAt -c "$sql" $db 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a DML to refresh materialized views'
+            ['2/database']=$db
+            ['3m/error']=$dml))"
 
-    if [ -z "$dml" ]; then
-        info "No materialized views to refresh for $db."
+    if [[ -z "$dml" ]]; then
+        info "$(declare -pA a=(
+            ['1/message']='No materialized views to refresh'
+            ['2/database']=$db))"
     else
         refresh_start_time=$(timer)
 
         no_errors=true
         output_list=''
         while read cmd; do
-            output_list="$output_list\n$cmd"
+            if [[ -z "$output_list" ]]; then
+                output_list="$cmd"
+            else
+                output_list="$output_list\n$cmd"
+            fi
 
             was_error=false
             error=$($PSQL -XAt -c "$cmd" $db 2>&1) || was_error=true
@@ -95,14 +104,21 @@ for db in $MATVIEWS_DBNAME_LIST; do
         done <<< "$dml"
 
         if $no_errors; then
-            info "Materialized views have been successfully refreshed for $db:"\
-                 "$output_list"
+            info "$(declare -pA a=(
+                ['1/message']='Materialized views have been successfully refreshed'
+                ['2/database']=$db
+                ['3m/detail']=$output_list))"
         else
-            die "Can not refresh materialized views for $db:$output_list"
+            die "$(declare -pA a=(
+                ['1/message']='Can not refresh materialized views'
+                ['2/database']=$db
+                ['3m/detail']=$output_list))"
         fi
 
         refresh_time=$(( ${refresh_time:-0} + $(timer $refresh_start_time) ))
     fi
 done
 
-info "Refresh time, s: value ${refresh_time:-N/A}."
+info "$(declare -pA a=(
+    ['1/message']='Execution time, s'
+    ['2/time']=${refresh_time:-null}))"
