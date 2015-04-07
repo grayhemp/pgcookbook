@@ -6,6 +6,8 @@
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
+set -o pipefail
+
 # Logging
 
 function die() {
@@ -47,7 +49,7 @@ function progress() {
 function get_log_headers() {
     local arr
     declare -A arr=(
-        ['-4/timestamp']=$(date)
+        ['-4/timestamp']=$(date +'%Y-%m-%dT%H:%M:%S%z')
         ['-3/host']=$(hostname)
         ['-2/pid']=$$
         ['-1/facility']=$(basename $0)
@@ -118,7 +120,8 @@ function to_plain() {
         local key_flags="${BASH_REMATCH[1]}"
         local key_name="${BASH_REMATCH[2]}"
 
-        if ! contains 'timestamp host facility level pid message' "$key_name"; then
+        if ! contains 'timestamp host facility level pid message' "$key_name"
+        then
             echo -n "$(to_plain_token "$key_name")="
         fi
 
@@ -128,7 +131,8 @@ function to_plain() {
             echo -ne "\nEOS"
             (( ${#arr[@]} != $index )) && echo -ne "\n"
         elif [[ "$key_name" == 'message' ]]; then
-            echo -n "${arr[$key]}:"
+            echo -n "${arr[$key]}"
+            (( ${#arr[@]} > 6 )) && echo -ne ":"
         elif contains 'timestamp host facility level pid' "$key_name"; then
             echo -n "${arr[$key]}"
         else
@@ -208,7 +212,7 @@ function to_json_key() {
     if [[ -z "$1" ]]; then
         formatter='to_text'
         declare -A a=(
-            ['message']=$(to_text_token "Empty JSON keys are not allowed."))
+            ['1/message']=$(to_text_token "Empty JSON keys are not allowed."))
         die "$(declare -p a)"
     fi
 
@@ -232,7 +236,7 @@ if contains "plain kv json" "$LOG_FORMAT"; then
 else
     formatter='to_plain'
     declare -A a=(
-        ['message']="Wrong log format '$LOG_FORMAT'.")
+        ['1/message']="Wrong log format '$LOG_FORMAT'.")
     die "$(declare -p a)"
 fi
 
