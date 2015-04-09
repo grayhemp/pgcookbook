@@ -121,4 +121,4 @@ done
 
 info "$(declare -pA a=(
     ['1/message']='Execution time, s'
-    ['2/time']=${refresh_time:-null}))"
+    ['2/refresh']=${refresh_time:-null}))"

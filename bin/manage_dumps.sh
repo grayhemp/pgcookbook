@@ -34,7 +34,7 @@ error=$(mkdir -p $DUMPS_ARCHIVE_DIR 2>&1) ||
 error=$(mkdir -p $DUMPS_LOCAL_DIR/$dump_dir 2>&1) ||
     die "$(declare -pA a=(
         ['1/message']='Can not make a dump directory locally'
-        ['2/dump_dir']=$dump_dir
+        ['2/dir']=$DUMPS_LOCAL_DIR/$dump_dir
         ['3m/error']=$error))"
 
 error=$($PGDUMPALL -g -f $DUMPS_LOCAL_DIR/$dump_dir/globals.sql 2>&1) ||
@@ -55,8 +55,8 @@ done
 dump_time=$(timer $dump_start_time)
 
 info "$(declare -pA a=(
-    ['1/message']='Dump has been made'
-    ['2/dump_dir']=$dump_dir))"
+    ['1/message']='Dumps has been made'
+    ['2/dir']=$DUMPS_LOCAL_DIR/$dump_dir))"
 
 if [[ $DUMPS_ARCHIVE_DIR != $DUMPS_LOCAL_DIR ]]; then
     sync_start_time=$(timer)
@@ -64,20 +64,21 @@ if [[ $DUMPS_ARCHIVE_DIR != $DUMPS_LOCAL_DIR ]]; then
     error=$($RSYNC $DUMPS_LOCAL_DIR/$dump_dir $DUMPS_ARCHIVE_DIR 2>&1) || \
         die "$(declare -pA a=(
             ['1/message']='Can not copy the dump directory to archive'
-            ['2/dump_dir']=$dump_dir
-            ['3m/error']=$error))"
+            ['2/loacal_dir']=$DUMPS_LOCAL_DIR/$dump_dir
+            ['3/archive_dir']=$DUMPS_ARCHIVE_DIR
+            ['4m/error']=$error))"
 
     error=$(rm -r $DUMPS_LOCAL_DIR/$dump_dir 2>&1) || \
         die "$(declare -pA a=(
             ['1/message']='Can not remove the local dump directory'
-            ['2/dump_dir']=$dump_dir
+            ['2/dir']=$DUMPS_LOCAL_DIR/$dump_dir
             ['3m/error']=$error))"
 
     sync_time=$(timer $sync_start_time)
 
     info "$(declare -pA a=(
         ['1/message']='Dump has been archived'
-        ['2/dump_dir']=$dump_dir))"
+        ['2/dir']=$DUMPS_ARCHIVE_DIR/$dump_dir))"
 fi
 
 sql=$(cat <<EOF
@@ -107,19 +108,19 @@ for dir in $(ls -1 $DUMPS_ARCHIVE_DIR); do
         error=$(rm -r $DUMPS_ARCHIVE_DIR/$dir 2>&1) || \
             die "$(declare -pA a=(
                 ['1/message']='Can not remove the obsolete dump'
-                ['2/dir']=$dir
+                ['2/dir']=$DUMPS_ARCHIVE_DIR/$dir
                 ['3m/error']=$error))"
 
         rotation_time=$(( ${rotation_time:-0} + $(timer $rotation_start_time) ))
 
         info "$(declare -pA a=(
             ['1/message']='Obsolete dump has been removed'
-            ['2/dir']=$dir))"
+            ['2/dir']=$DUMPS_ARCHIVE_DIR/$dir))"
     fi
 done
 
 info "$(declare -pA a=(
     ['1/message']='Execution time, s'
-    ['2/dump_time']=${dump_time:-null}
-    ['3/sync_time']=${sync_time:-null}
-    ['4/rotation_time']=${rotation_time:-null}))"
+    ['2/dump']=${dump_time:-null}
+    ['3/sync']=${sync_time:-null}
+    ['4/rotation']=${rotation_time:-null}))"

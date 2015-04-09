@@ -279,4 +279,4 @@ restore_time=$(timer $restore_start_time)
 
 info "$(declare -pA a=(
     ['1/message']='Execution time, s'
-    ['2/restore_time']=${restore_time:-null}))"
+    ['2/restore']=${restore_time:-null}))"

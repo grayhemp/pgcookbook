@@ -27,7 +27,7 @@ fi
 error=$(mkdir -p $ARCHIVE_ARCHIVE_DIR 2>&1) ||
     die "$(declare -pA a=(
         ['1/message']='Can not make an archive directory'
-        ['2/archive_dir']=$ARCHIVE_ARCHIVE_DIR
+        ['2/dir']=$ARCHIVE_ARCHIVE_DIR
         ['3m/detail']=$error))"
 
 for dbname in $ARCHIVE_DBNAME_LIST; do
@@ -64,14 +64,14 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
                 die "$(declare -pA a=(
                     ['1/message']='File already exists locally'
                     ['2/database']=$dbname
-                    ['3/file']=$file))"
+                    ['3/file']=$ARCHIVE_LOCAL_DIR/$dbname/$file))"
         fi
 
         [[ -f $ARCHIVE_ARCHIVE_DIR/$dbname/$file ]] &&
             die "$(declare -pA a=(
                 ['1/message']='File already exists in archive'
                 ['2/database']=$dbname
-                ['3/file']=$file))"
+                ['3/file']=$ARCHIVE_ARCHIVE_DIR/$dbname/$file))"
 
         if ! $ARCHIVE_DRY_RUN; then
             error=$(

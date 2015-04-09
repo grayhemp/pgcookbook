@@ -25,7 +25,7 @@ if $PITR_WAL; then
     error=$(mkdir -p $PITR_WAL_ARCHIVE_DIR 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not make a wal directory'
-            ['2/wal_archive_dir']=$PITR_WAL_ARCHIVE_DIR
+            ['2/dir']=$PITR_WAL_ARCHIVE_DIR
             ['3m/detail']=$error))"
 
     (
@@ -70,13 +70,13 @@ else
     error=$(mkdir -p $PITR_ARCHIVE_DIR 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not make an archive directory'
-            ['2/archive_dir']=$PITR_ARCHIVE_DIR
+            ['2/dir']=$PITR_ARCHIVE_DIR
             ['3m/detail']=$error))"
 
     error=$(mkdir -p $PITR_LOCAL_DIR/$backup_dir 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not make a base backup directory locally'
-            ['2/backup_dir']=$backup_dir
+            ['2/dir']=$PITR_LOCAL_DIR/$backup_dir
             ['3m/detail']=$error))"
 
     error=$(
@@ -90,7 +90,7 @@ else
 
     info "$(declare -pA a=(
         ['1/message']='Base backup has been made'
-        ['2/backup_dir']=$backup_dir))"
+        ['2/dir']=$PITR_LOCAL_DIR/$backup_dir))"
 
     if [ $PITR_ARCHIVE_DIR != $PITR_LOCAL_DIR ]; then
         sync_start_time=$(timer)
@@ -98,20 +98,21 @@ else
         error=$($RSYNC $PITR_LOCAL_DIR/$backup_dir $PITR_ARCHIVE_DIR 2>&1) ||
             die "$(declare -pA a=(
                 ['1/message']='Can not copy the base backup directory to archive'
-                ['2/backup_dir']=$backup_dir
-                ['3m/detail']=$error))"
+                ['2/local_dir']=$PITR_LOCAL_DIR/$backup_dir
+                ['3/archive_dir']=$PITR_ARCHIVE_DIR
+                ['4m/detail']=$error))"
 
         error=$(rm -r $PITR_LOCAL_DIR/$backup_dir 2>&1) ||
             die "$(declare -pA a=(
                 ['1/message']='Can not remove the local base backup directory'
-                ['2/backup_dir']=$backup_dir
+                ['2/dir']=$PITR_LOCAL_DIR/$backup_dir
                 ['3m/detail']=$error))"
 
         sync_time=$(timer $sync_start_time)
 
         info "$(declare -pA a=(
             ['1/message']='Base backup has been archived'
-            ['2/backup_dir']=$backup_dir))"
+            ['2/backup_dir']=$PITR_ARCHIVE_DIR/$backup_dir))"
     fi
 
     keep_list=$( \
@@ -127,7 +128,7 @@ else
             error=$(rm -r $PITR_ARCHIVE_DIR/$dir 2>&1) ||
                 die "$(declare -pA a=(
                     ['1/message']='Can not remove the obsolete base backup'
-                    ['2/backup_dir']=$dir
+                    ['2/dir']=$PITR_ARCHIVE_DIR/$dir
                     ['3m/detail']=$error))"
 
             base_backup_rotation_time=$((
@@ -136,7 +137,7 @@ else
 
             info "$(declare -pA a=(
                 ['1/message']='Obsolete base backup has been removed'
-                ['2/backup_dir']=$dir))"
+                ['2/dir']=$PITR_ARCHIVE_DIR/$dir))"
         fi
     done
 
@@ -161,8 +162,8 @@ else
 
     info "$(declare -pA a=(
         ['1/message']='Execution time, s'
-        ['2/base_backup_time']=${base_backup_time:-null}
-        ['3/sync_time']=${sync_time:-null}
-        ['4/base_backup_rotation_time']=${base_backup_rotation_time:-null}
-        ['5/wal_rotation_time']=${wal_rotation_time:-null}))"
+        ['2/base_backup']=${base_backup_time:-null}
+        ['3/sync']=${sync_time:-null}
+        ['4/base_backup_rotation']=${base_backup_rotation_time:-null}
+        ['5/wal_rotation']=${wal_rotation_time:-null}))"
 fi
