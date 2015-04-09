@@ -24,85 +24,132 @@ source $(dirname $0)/utils.sh
 
 restore_start_time=$(timer)
 
-dbname_list=$( \
-    $PSQL -XAt -c "SELECT datname FROM pg_database" postgres 2>&1) || \
-    die "Can not get database list: $dbname_list."
+dbname_list=$(
+    $PSQL -XAt -c "SELECT datname FROM pg_database" postgres 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not get a database list'
+        ['2m/detail']=$dbname_list))"
 
 if contains "$dbname_list" $RESTORE_DBNAME; then
-    preserve_list=$( \
-        $PSQL -XAt -F '.'  -c "$RESTORE_PRESERVE_SQL" $RESTORE_DBNAME 2>&1) || \
-        die "Can not get preserve list: $preserve_list."
+    preserve_list=$(
+        $PSQL -XAt -F '.'  -c "$RESTORE_PRESERVE_SQL" $RESTORE_DBNAME 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a preserve list'
+            ['2m/detail']=$preserve_list))"
 
-    preserve_filter_list=$( \
+    preserve_filter_list=$(
         $PSQL -XAt -R '|' -F ' '  -c "$RESTORE_PRESERVE_SQL" \
-        $RESTORE_DBNAME 2>&1) || \
-        die "Can not get preserve list: $preserve_list."
+            $RESTORE_DBNAME 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a preserve filter list'
+            ['2m/detail']=$preserve_filter_list))"
 
-    if [ ! -z "$preserve_list" ]; then
-        error=$(mkdir -p $RESTORE_PRESERVE_DIR 2>&1) || \
-            die "Can not make a preserve directory for $RESTORE_DBNAME: $error."
+    if [[ ! -z "$preserve_list" ]]; then
+        error=$(mkdir -p $RESTORE_PRESERVE_DIR 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not make a preserve directory'
+                ['2/dir']=$RESTORE_PRESERVE_DIR
+                ['3m/detail']=$error))"
 
         for preserve in $preserve_list; do
             file=$RESTORE_DBNAME-$preserve.dump
 
-            [ -f $RESTORE_PRESERVE_DIR/$file ] && \
-                die "Preserved dump $file allready exists."
+            [[ -f $RESTORE_PRESERVE_DIR/$file ]] &&
+                die "$(declare -pA a=(
+                    ['1/message']='Preserved dump file allready exists'
+                    ['3/file']=$RESTORE_PRESERVE_DIR/$file
+                    ['4m/detail']=$error))"
 
-            error=$($PGDUMP -F c -Z 2 -t $preserve \
-                -f $RESTORE_PRESERVE_DIR/$file $RESTORE_DBNAME 2>&1) || \
-                die "Can not preserve $preserve from $RESTORE_DBNAME: $error."
+            error=$(
+                $PGDUMP -F c -Z 2 -t $preserve \
+                    -f $RESTORE_PRESERVE_DIR/$file $RESTORE_DBNAME 2>&1) ||
+                die "$(declare -pA a=(
+                    ['1/message']='Can not preserve the table data'
+                    ['2/database']=$RESTORE_DBNAME
+                    ['3/table']=$preserve
+                    ['4/file']=$RESTORE_PRESERVE_DIR/$file
+                    ['5m/detail']=$error))"
 
-            info "Table $preserve from $RESTORE_DBNAME preserved in $file."
+            info "$(declare -pA a=(
+                ['1/message']='Table data preserved'
+                ['2/database']=$RESTORE_DBNAME
+                ['3/table']=$preserve
+                ['4/file']=$RESTORE_PRESERVE_DIR/$file))"
         done
     fi
 fi
 
 if $RESTORE_DROP; then
-    if contains "$dbname_list" $RESTORE_DBNAME; then
-        error=$($PSQL -o /dev/null -c \
-            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
-             WHERE datname = '$RESTORE_DBNAME'" 2>&1) || \
-            die "Can not terminate connections: $error."
+    if contains "$dbname_list" "$RESTORE_DBNAME"; then
+        error=$(
+            $PSQL -o /dev/null -c \
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
+                 WHERE datname = '$RESTORE_DBNAME'" 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not terminate connections'
+                ['2m/detail']=$error))"
 
-        error=$($PSQL -XAtq \
-            -c "DROP DATABASE \"$RESTORE_DBNAME\"" postgres 2>&1) || \
-            die "Can not drop database: $error."
+        error=$(
+            $PSQL -XAtq \
+                -c "DROP DATABASE \"$RESTORE_DBNAME\"" postgres 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not drop the database'
+                ['2/database']=$RESTORE_DBNAME
+                ['3m/detail']=$error))"
 
         dbname_list=$( \
-            $PSQL -XAt -c "SELECT datname FROM pg_database" postgres 2>&1) || \
-            die "Can not get database list after drop: $dbname_list."
+            $PSQL -XAt -c "SELECT datname FROM pg_database" postgres 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not get a database list after dropping'
+                ['2m/detail']=$dbname_list))"
     fi
 fi
 
-if contains "$dbname_list" $RESTORE_DBNAME; then
-    die "Can not restore to existing database."
+if contains "$dbname_list" "$RESTORE_DBNAME"; then
+    die "$(declare -pA a=(
+        ['1/message']='Can not restore to an existing database'
+        ['2/database']=$RESTORE_DBNAME))"
 fi
 
-error=$($PSQL -XAtq -c "CREATE DATABASE \"$RESTORE_DBNAME\"" postgres 2>&1) || \
-    die "Can not create database: $error."
+error=$($PSQL -XAtq -c "CREATE DATABASE \"$RESTORE_DBNAME\"" postgres 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not create the database'
+        ['2/database']=$RESTORE_DBNAME
+        ['3m/detail']=$error))"
 
-error=$($PGRESTORE -es -d $RESTORE_DBNAME -F c $RESTORE_FILE 2>&1) || \
-    die "Can not restore schema: $error."
+error=$($PGRESTORE -es -d $RESTORE_DBNAME -F c $RESTORE_FILE 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not restore the database schema'
+        ['2/database']=$RESTORE_DBNAME
+        ['3/file']=$RESTORE_FILE
+        ['4m/detail']=$error))"
 
-filter_list=$( \
-    $PSQL -XAt -R '|' -F ' '  -c "$RESTORE_FILTER_SQL" \
-    $RESTORE_DBNAME 2>&1) || \
-    die "Can not get filter list: $filter_list."
+filter_list=$(
+    $PSQL -XAt -R '|' -F ' ' \
+        -c "$RESTORE_FILTER_SQL" $RESTORE_DBNAME 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not get a filter list'
+        ['2m/detail']=$filter_list))"
 
-if [ ! -z "$preserve_filter_list" ]; then
+if [[ ! -z "$preserve_filter_list" ]]; then
     filter_list="$filter_list|$preserve_filter_list"
 fi
 
-filter_data_list=$( \
-    $PSQL -XAt -R '|' -F ' '  -c "$RESTORE_FILTER_DATA_SQL" \
-    $RESTORE_DBNAME 2>&1) || \
-    die "Can not get filter data list: $filter_data_list."
+filter_data_list=$(
+    $PSQL -XAt -R '|' -F ' ' \
+        -c "$RESTORE_FILTER_DATA_SQL" $RESTORE_DBNAME 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not get a filter data list'
+        ['2m/detail']=$filter_data_list))"
 
-filter_data_part_list=$( \
+filter_data_part_list=$(
     $PSQL -XAt -R '|' -F ' ' -c \
-    "SELECT schemaname, tablename FROM ($RESTORE_FILTER_DATA_PART_SQL) AS s" \
-    $RESTORE_DBNAME 2>&1) || \
-    die "Can not get filter data part list: $filter_data_part_list."
+        "SELECT schemaname, tablename \
+         FROM ($RESTORE_FILTER_DATA_PART_SQL) AS s" \
+        $RESTORE_DBNAME 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not get a filter data part list'
+        ['2m/detail']=$filter_data_part_list))"
 
 filter_data_part_create_sql=$(cat <<EOF
 SELECT
@@ -136,65 +183,100 @@ FROM (
 EOF
 )
 
-error=$( \
-    $PGRESTORE -F c -l $RESTORE_FILE | grep -vE \
-    "TABLE DATA ($filter_list|$filter_data_list|$filter_data_part_list) " \
-    2>&1 | tee /tmp/restore_dump.$$ ) || \
-    die "Can not make filtered dump list: $error."
+error=$(
+    ($PGRESTORE -F c -l $RESTORE_FILE \
+        | grep -vE "TABLE DATA ($filter_list|$filter_data_list|$filter_data_part_list) " \
+        | tee /tmp/restore_dump.$$) 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not make a filtered dump list'
+        ['2m/detail']=$error))"
 
-error=$( \
+error=$(
     $PGRESTORE --disable-triggers -j $RESTORE_THREADS -ea -d $RESTORE_DBNAME \
-    -F c -L /tmp/restore_dump.$$ $RESTORE_FILE 2>&1) || \
-    die "Can not restore filtered dump: $error."
-
-error=$( \
-    $PGRESTORE -F c -l $RESTORE_FILE | \
-    grep -E "TABLE DATA ($filter_data_part_list) " 2>&1 | \
-    tee /tmp/restore_dump.$$ ) || \
-    die "Can not make data part dump list: $error."
+        -F c -L /tmp/restore_dump.$$ $RESTORE_FILE 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not restore a filtered dump'
+        ['2/database']=$RESTORE_DBNAME
+        ['3/file']=$RESTORE_FILE
+        ['4m/detail']=$error))"
 
 error=$(
-    $PSQL -XAtq -c "$filter_data_part_create_sql" $RESTORE_DBNAME | \
-    xargs -I "{}" $PSQL -XAtq -c "{}" $RESTORE_DBNAME 2>&1) || \
-    die "Can not create functions and triggers: $error."
+    ($PGRESTORE -F c -l $RESTORE_FILE \
+        | grep -E "TABLE DATA ($filter_data_part_list) " \
+        | tee /tmp/restore_dump.$$) 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not make a data part dump list'
+        ['2m/detail']=$error))"
 
-error=$( \
+error=$(
+    ($PSQL -XAtq -c "$filter_data_part_create_sql" $RESTORE_DBNAME \
+        | xargs -I "{}" $PSQL -XAtq -c "{}" $RESTORE_DBNAME) 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not create functions and triggers'
+        ['2m/detail']=$error))"
+
+error=$(
     $PGRESTORE -j $RESTORE_THREADS -ea -d $RESTORE_DBNAME \
-    -F c -L /tmp/restore_dump.$$ $RESTORE_FILE 2>&1) || \
-    die "Can not restore data part dump: $error."
+        -F c -L /tmp/restore_dump.$$ $RESTORE_FILE 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not restore the data part dump'
+        ['2m/detail']=$error))"
 
-error=$(rm /tmp/restore_dump.$$ 2>&1) || \
-    die "Can not remove dump list: $error."
+error=$(rm /tmp/restore_dump.$$ 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not remove the temporary dump list file'
+        ['2m/detail']=$error))"
 
 error=$(
-    $PSQL -XAtq -c "$filter_data_part_drop_sql" $RESTORE_DBNAME | \
-    xargs -I "{}" $PSQL -XAtq -c "{}" $RESTORE_DBNAME 2>&1) || \
-    die "Can not drop functions and triggers: $error."
+    ($PSQL -XAtq -c "$filter_data_part_drop_sql" $RESTORE_DBNAME \
+        | xargs -I "{}" $PSQL -XAtq -c "{}" $RESTORE_DBNAME) 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not drop functions and triggers'
+        ['2m/detail']=$error))"
 
 error=$(
-    echo $filter_list | sed 's/|/\n/g' | \
-    sed -r 's/(.+) (.+)/DROP TABLE \1.\2 CASCADE;/' | \
-    xargs -I "{}" $PSQL -XAtq -c "{}" $RESTORE_DBNAME 2>&1) || \
-    die "Can not drop tables: $error."
+    (echo $filter_list | sed 's/|/\n/g' \
+        | sed -r 's/(.+) (.+)/DROP TABLE \1.\2 CASCADE;/' \
+        | xargs -I "{}" $PSQL -XAtq -c "{}" $RESTORE_DBNAME) 2>&1) || \
+    die "$(declare -pA a=(
+        ['1/message']='Can not drop tables'
+        ['2m/detail']=$error))"
 
-if [ ! -z "$preserve_list" ]; then
+if [[ ! -z "$preserve_list" ]]; then
     for preserve in $preserve_list; do
         file=$RESTORE_DBNAME-$preserve.dump
 
-        error=$( \
+        error=$(
             $PGRESTORE -e -d $RESTORE_DBNAME -F c \
-            $RESTORE_PRESERVE_DIR/$file 2>&1) || \
-            die "Can not restore preserved $file in $RESTORE_DBNAME: $error."
+                $RESTORE_PRESERVE_DIR/$file 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not restore the preserved file'
+                ['2/database']=$RESTORE_DBNAME
+                ['3/file']=$RESTORE_PRESERVE_DIR/$file
+                ['4m/detail']=$error))"
 
-        info "Restored preserved $file in $RESTORE_DBNAME."
+        info "$(declare -pA a=(
+            ['1/message']='Preserved file has been restored'
+            ['2/database']=$RESTORE_DBNAME
+            ['3/file']=$RESTORE_PRESERVE_DIR/$file))"
 
         error=$(rm $RESTORE_PRESERVE_DIR/$file 2>&1) || \
-            die "Can not remove preserved dump $file: $error."
+            die "$(declare -pA a=(
+                ['1/message']='Can not remove the preserved file'
+                ['2/file']=$RESTORE_PRESERVE_DIR/$file
+                ['3m/detail']=$error))"
 
-        info "Preserve dump $file removed."
+        info "$(declare -pA a=(
+            ['1/message']='Preserved file has been removed'
+            ['2/file']=$RESTORE_PRESERVE_DIR/$file))"
     done
 fi
 
-info "Database restored."
+info "$(declare -pA a=(
+    ['1/message']='Database has been restored'))"
 
-info "Restore time, s: value $(timer $restore_start_time)."
+restore_time=$(timer $restore_start_time)
+
+info "$(declare -pA a=(
+    ['1/message']='Execution time, s'
+    ['2/restore_time']=${restore_time:-null}))"
