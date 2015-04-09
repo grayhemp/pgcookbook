@@ -19,18 +19,25 @@ instance_dsn=$(
 # version
 
 (
-    src=$($PSQL -XAtc 'SHOW VERSION' pgbouncer 2>&1) || \
-        die "Can not get a version data for $instance_dsn: $version."
-    src=$(echo "$src" | sed -r 's/\s+/ /g')
+    src=$($PSQL -XAtc 'SHOW VERSION' pgbouncer 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a version data'
+            ['2/dsn']=$instance_dsn
+            ['3m/detail']=$src))"
 
-    regex='\S+ \S+ \S+ (\S+)'
+    regex='\S+\s+\S+ \S+ (\S+)'
 
     [[ $src =~ $regex ]] ||
-        die "Can not match the version data: $src."
+        die "$(declare -pA a=(
+            ['1/message']='Can not match the version data'
+            ['2m/src']=$src))"
 
     version=${BASH_REMATCH[1]}
 
-    info "Version for $instance_dsn: version $version."
+    info "$(declare -pA a=(
+        ['1/message']='Version'
+        ['2/dsn']=$instance_dsn
+        ['3/version']=$version))"
 )
 
 # settings
@@ -44,11 +51,23 @@ EOF
 )
 
 (
-    result=$($PSQL -XAt -F ' ' -c 'SHOW CONFIG' pgbouncer 2>&1) || \
-        die "Can not get a config data for $instance_dsn: $result."
     result=$(
-        echo "$result" | cut -d ' ' -f 1,2 | grep -E "$settings_regex" \
-        | paste -sd ',' | sed -r 's/,/, /g')
+        ($PSQL -XAt -c 'SHOW CONFIG' pgbouncer \
+            | cut -d '|' -f 1,2 | grep -E "$settings_regex") 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a settings data'
+            ['2/dsn']=$instance_dsn
+            ['3m/detail']=$result))"
 
-    info "Settings for $instance_dsn: $result."
+    declare -A a=(
+        ['1/message']='Settings'
+        ['2/dsn']=$instance_dsn)
+
+    count=3
+    while read l; do
+        a["$count/${l%%|*}"]="${l#*|}"
+        (( count++ ))
+    done <<< "$result"
+
+    info "$(declare -p a)"
 )
