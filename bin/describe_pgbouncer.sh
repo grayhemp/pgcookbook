@@ -1,10 +1,14 @@
 #!/bin/bash
 
-# describe_pgbouncer.sh - prints details about a PgBouncer instance.
+# describe_pgbouncer.sh - provides details about a PgBouncer instance.
 #
-# Prints version and important configuration parameters. Do not forget
-# to specify an appropriate connection parameters for monitored
-# instnces.
+# Collects and prints out:
+#
+# - version
+# - important settings
+#
+# Do not forget to specify an appropriate connection parameters for
+# monitored instnces.
 #
 # Copyright (c) 2015 Sergey Konoplev
 #

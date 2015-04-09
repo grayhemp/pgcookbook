@@ -2,7 +2,12 @@
 
 # describe_postgres.sh - provides details about a PostgreSQL instance.
 #
-# Prints out version, tablespaces, symlinks and custom settings.
+# Collects and prints out:
+#
+# - version
+# - tablespaces
+# - symlinks
+# - custom settings
 #
 # Copyright (c) 2015 Sergey Konoplev
 #
