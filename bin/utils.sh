@@ -151,7 +151,7 @@ function to_plain() {
 function to_plain_token() {
     if [[ -z "$1" ]]; then
         echo -n '""'
-    elif [[ "$1" =~ ^[a-Z0-9_]+$ ]]; then
+    elif [[ "$1" =~ ^[a-Z0-9_]+(\.[a-Z0-9_]+)?$ ]]; then
         echo -n "$1"
     else
         qq "$1"
