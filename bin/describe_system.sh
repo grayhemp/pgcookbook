@@ -1,9 +1,16 @@
 #!/bin/bash
 
-# describe_system.sh - provides details on general system components.
+# describe_system.sh - provides details about system components.
 #
-# Prints out an information about CPU, memory, filesystem, kernel,
-# etc.
+# Collects and prints out:
+#
+# - general system info
+# - distribution
+# - CPU info
+# - memory and swap
+# - filesystem info
+# - network info
+# - custom kernel settings
 #
 # Copyright (c) 2015 Sergey Konoplev
 #
@@ -12,76 +19,110 @@
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
-# general info hostname, OS, kernel version, architecture
+# general system info OS, kernel version, architecture
 
 (
     src=$(uname -a)
 
-    regex='^(\S+) (\S+) (\S+) .+ (\S+) \S+$'
+    regex='^(\S+) \S+ (\S+) .+ (\S+) \S+$'
 
-    [[ $src =~ $regex ]] || die "Can not match the genral info data: $src."
+    [[ $src =~ $regex ]] ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not match the genral system info data'
+            ['2m/data']=$src))"
 
     os=${BASH_REMATCH[1]}
-    hostname=${BASH_REMATCH[2]}
-    kernel=${BASH_REMATCH[3]}
-    architecture=${BASH_REMATCH[4]}
+    kernel=${BASH_REMATCH[2]}
+    arch=${BASH_REMATCH[3]}
 
-    info "General info:" \
-         "host $hostname, OS $os, kernel $kernel, arch $architecture."
+    info "$(declare -pA a=(
+        ['1/message']='General system info'
+        ['2/os']=$os
+        ['3/kernel']=$kernel
+        ['4/arch']=$arch))"
 )
 
 # distribution name, version
 
 (
     src=$(
-        cat /etc/*release | grep -iE '^(name|version_id)=' \
-        | sed -r 's/(.*=|")//g' | paste -sd ' ')
+        (cat /etc/*release | grep -iE '^(name|version_id)=' \
+            | sed -r 's/(.*=|")//g' | paste -sd ' ') 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a distribution data'
+            ['2m/detail']=$src))"
 
     regex='(\S*) (\S*)'
 
-    [[ $src =~ $regex ]]
+    [[ $src =~ $regex ]] ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not match the distribution data'
+            ['2m/data']=$src))"
 
-    name=${BASH_REMATCH[1]:-'unknown'}
-    version=${BASH_REMATCH[2]:-'unknown'}
+    name=${BASH_REMATCH[1]:-null}
+    version=${BASH_REMATCH[2]:-null}
 
-    info "Distribution: name $name, version $version."
+    info "$(declare -pA a=(
+        ['1/message']='Distribution'
+        ['2/name']=$name
+        ['3/version']=$version))"
 )
 
 # CPU model, cache, threads, cores
 
 (
     src=$(
-        cat /proc/cpuinfo \
-        | grep -E 'model name|cache size|cpu cores|processor' \
-        | tail -n 4 | sed -r 's/.*:\s*//' | paste -sd ' ')
+        (cat /proc/cpuinfo \
+            | grep -E 'model name|cache size|cpu cores|processor' \
+            | tail -n 4 | sed -r 's/.*:\s*//' | paste -sd ' ') 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a CPU data'
+            ['2m/detail']=$src))"
 
     regex='^(\S+) (.+) (\S+) \S+ (\S+)$'
 
-    [[ $src =~ $regex ]] || die "Can not match the CPU data: $src."
+    [[ $src =~ $regex ]] ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not match the CPU data'
+            ['2m/data']=$src))"
 
     threads=$(( ${BASH_REMATCH[1]} + 1 ))
     model=${BASH_REMATCH[2]}
     cache=${BASH_REMATCH[3]}
     cores=${BASH_REMATCH[4]}
 
-    info "CPU: model $model, cache kB $cache, threads $threads, cores $cores."
+    info "$(declare -pA a=(
+        ['1/message']='CPU info'
+        ['2/model']=$model
+        ['3/cache']=$cache
+        ['4/threads']=$threads
+        ['5/cores']=$cores))"
 )
 
 # memory total, swap
 
 (
     src=$(
-        cat /proc/meminfo | grep -iE '^(Mem|Swap)Total:' \
-        | sed -r 's/.+:\s+| kB//g' | paste -sd ' ')
+        (cat /proc/meminfo | grep -iE '^(Mem|Swap)Total:' \
+            | sed -r 's/.+:\s+| kB//g' | paste -sd ' ') 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a memory data'
+            ['2m/detail']=$src))"
 
     regex='(\S+) (\S+)'
 
-    [[ $src =~ $regex ]] || die "Can not match the memory data: $src."
+    [[ $src =~ $regex ]] ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not match the memory data'
+            ['2m/data']=$src))"
 
     memory=${BASH_REMATCH[1]}
     swap=${BASH_REMATCH[2]}
 
-    info "Memory, kB: total $memory, swap $swap."
+    info "$(declare -pA a=(
+        ['1/message']='Memory info, kB'
+        ['2/memory']=$memory
+        ['3/swap']=$swap))"
 )
 
 # filesystem mount point, device, type, options, disk space, usage
@@ -89,9 +130,9 @@ source $(dirname $0)/utils.sh
 part_list=$(ls -l /dev/disk/by-uuid/* | sed 's/.*\///' | sort)
 
 for part in $part_list; do
-    if [ -z $(grep $part /proc/swaps | cut -d ' ' -f 1) ]; then
+    if [[ -z $(grep $part /proc/swaps | cut -d ' ' -f 1) ]]; then
         (
-            regex="(\S+) (\S+) (\S+) (\S+) (\S+) \((\S+)\)"
+            regex="(\S+) (\S+) (\S+)% (\S+) (\S+) \((\S+)\)"
             src=$(
                 join -o '1.1 1.2 1.5 1.6 2.5 2.6' \
                     <(df 2>/dev/null | sed -r 's/\s+/ /g' \
@@ -101,18 +142,25 @@ for part in $part_list; do
                     <(mount -l | sort))
 
             [[ $src =~ $regex ]] ||
-                die "Can not match the partition data for $part: $src."
+                die "$(declare -pA a=(
+                    ['1/message']='Can not match the partition data'
+                    ['2/partition']=$part
+                    ['3m/detail']=$src))"
 
             device=${BASH_REMATCH[1]}
             disk_space=${BASH_REMATCH[2]}
-            usage=${BASH_REMATCH[3]}
+            usage_percent=${BASH_REMATCH[3]}
             mount_point=${BASH_REMATCH[4]}
             type=${BASH_REMATCH[5]}
             options=${BASH_REMATCH[6]}
 
-            info "Filesystem for $device:" \
-                 "mount point $mount_point, type $type," \
-                 "options $options, disk space $disk_space, usage $usage."
+            info "$(declare -pA a=(
+                ['1/message']='Partition'
+                ['2/mount_point']=$mount_point
+                ['3/type']=$type
+                ['4/options']=$options
+                ['5/disk_space']=$disk_space
+                ['6/usage_percent']=$usage_percent))"
         )
     fi
 done
@@ -120,35 +168,57 @@ done
 # network interface MTU, status, MAC, IP, IPv6
 
 (
-    src_list=$(ip addr 2>&1) ||
-        die "Can not get a network interface source list: $src_list."
-    src_list=$(echo $src_list | sed -r 's/\S+: \S+:/\n\0/g' | sed '/^$/d;')
+    src_list=$(
+        (echo $(ip addr) | sed -r 's/\S+: \S+:/\n\0/g' | sed '/^$/d;') 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a network interface source list'
+            ['2m/detail']=$src_list))"
 
     while read src; do
         (
             [[ $src =~ $(echo ': (\S+):') ]] ||
-                die "Can not match the network interface name: $src."
+                die "$(declare -pA a=(
+                    ['1/message']='Can not match the network interface name'
+                    ['2m/detail']=$src))"
+
             name=${BASH_REMATCH[1]}
 
-            [[ $src =~ $(echo 'mtu (\S+)') ]]; mtu=${BASH_REMATCH[1]:-'N/A'}
-            [[ $src =~ $(echo 'state (\S+)') ]]; state=${BASH_REMATCH[1]:-'N/A'}
-            [[ $src =~ $(echo 'link/\S+ (\S+)') ]]; link=${BASH_REMATCH[1]:-'N/A'}
-            [[ $src =~ $(echo 'inet (\S+)') ]]; inet=${BASH_REMATCH[1]:-'N/A'}
-            [[ $src =~ $(echo 'inet6 (\S+)') ]]; inet6=${BASH_REMATCH[1]:-'N/A'}
+            [[ $src =~ $(echo 'mtu (\S+)') ]]; mtu=${BASH_REMATCH[1]:-null}
+            [[ $src =~ $(echo 'state (\S+)') ]]; state=${BASH_REMATCH[1]:-null}
+            [[ $src =~ $(echo 'link/\S+ (\S+)') ]]; link=${BASH_REMATCH[1]:-null}
+            [[ $src =~ $(echo 'inet (\S+)') ]]; inet=${BASH_REMATCH[1]:-null}
+            [[ $src =~ $(echo 'inet6 (\S+)') ]]; inet6=${BASH_REMATCH[1]:-null}
 
-            info "Network interface for $name:" \
-                 "mtu $mtu, state $state, link $link, inet $inet, inet6 $inet6."
+            info "$(declare -pA a=(
+                ['1/message']='Network interface'
+                ['2/name']=$name
+                ['3/mtu']=$mtu
+                ['4/state']=$state
+                ['5/link']=$link
+                ['6/inet']=$inet
+                ['7/inet6']=$inet6))"
         )
     done <<< "$src_list"
 )
 
 # custom kernel settings
 
-list=$(
-    cat /run/sysctl.d/*.conf /etc/sysctl.d/*.conf \
-        /usr/local/lib/sysctl.d/*.conf /usr/lib/sysctl.d/*.conf \
-        /lib/sysctl.d/*.conf /etc/sysctl.conf 2>/dev/null \
-    | grep -vE '^#|^\s*$' | sort  | paste -sd ',' | sed -r 's/\s*=\s*/ /g' \
-    | sed 's/,/, /g')
+(
+    result=$(
+        cat /run/sysctl.d/*.conf /etc/sysctl.d/*.conf \
+            /usr/local/lib/sysctl.d/*.conf /usr/lib/sysctl.d/*.conf \
+            /lib/sysctl.d/*.conf /etc/sysctl.conf 2>/dev/null \
+            | sort | sed -r 's/\s*=\s*/=/g'| sed -r 's/\s*#.*//g' \
+            | grep -vE '^\s*$')
 
-info "Custom kernel settings: $list."
+    declare -A a=(
+        ['1/message']='Custom kernel settings')
+
+    count=2
+    while read l; do
+        a["$count/${l%%=*}"]="${l#*=}"
+        (( count++ ))
+    done <<< "$result"
+
+    info "$(declare -p a)"
+)
