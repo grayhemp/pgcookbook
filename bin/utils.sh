@@ -104,7 +104,7 @@ function contains() {
 
 function qq() {
     printf '%q' "$1" | sed -r "s/^[$]?'|'$//g" | sed 's/"/\\"/g' \
-        | sed "s/\\\'/'/g" | sed 's/\\ / /g' | sed 's/\\,/,/g' \
+        | sed "s/\\\'/'/g" | sed -r 's/\\([ ,()])/\1/g' \
         | sed -r 's/^(.*)$/"\1"/'
 }
 
