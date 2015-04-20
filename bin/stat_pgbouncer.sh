@@ -14,16 +14,19 @@ source $(dirname $0)/utils.sh
 
 touch $STAT_PGBOUNCER_FILE
 
-instance_dsn=$(
+dsn=$(
     echo $([ ! -z "$HOST" ] && echo "host=$HOST") \
          $([ ! -z "$PORT" ] && echo "port=$PORT"))
 
 # instance responsiveness value
 
 (
-    info "Instance responsiveness for $instance_dsn: value "$(
-        $PSQL -XAtc 'SHOW HELP' pgbouncer 1>/dev/null 2>&1 \
-        && echo 't' || echo 'f')'.'
+    info "$(declare -pA a=(
+        ['1/message']='Instance responsiveness'
+        ['2/dsn']=$dsn
+        ['3/value']=$(
+            $PSQL -XAtc 'SHOW HELP' pgbouncer 1>/dev/null 2>&1 \
+                && echo 'true' || echo 'false')))"
 )
 
 # client connection counts by state
@@ -31,14 +34,20 @@ instance_dsn=$(
 # maxwait time
 
 (
-    row_list=$($PSQL -XAt -F ' ' -c "SHOW POOLS" pgbouncer 2>&1) || \
-        die "Can not get a pools data for $instance_dsn: $row_list."
+    row_list=$($PSQL -XAt -F ' ' -c "SHOW POOLS" pgbouncer 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a pools data'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$row_list))"
 
     regex='(\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)$'
 
     while read src; do
         [[ $src =~ $regex ]] ||
-            die "Can not match the pools data for $instance_dsn: $src."
+            die "$(declare -pA a=(
+                ['1/message']='Can not match the pools data'
+                ['2/dsn']=$dsn
+                ['3m/detail']=$src))"
 
         cl_active=$(( ${cl_active:-0} + ${BASH_REMATCH[1]} ))
         cl_waiting=$(( ${cl_waiting:-0} + ${BASH_REMATCH[2]} ))
@@ -50,12 +59,25 @@ instance_dsn=$(
         maxwait=$(( ${maxwait:-0} + ${BASH_REMATCH[8]} ))
     done <<< "$row_list"
 
-    info "Client connection counts by stat for $instance_dsn:" \
-         "active $cl_active, waiting $cl_waiting."
-    info "Server connection counts by stat for $instance_dsn:" \
-         "active $sv_active, idle $sv_idle, used $sv_used, tested $sv_tested," \
-         "login $sv_login."
-    info "Max waiting time for $instance_dsn, s: value $maxwait."
+    info "$(declare -pA a=(
+        ['1/message']='Client connection counts by stat'
+        ['2/dsn']=$dsn
+        ['3/active']=$cl_active
+        ['4/waiting']=$cl_waiting))"
+
+    info "$(declare -pA a=(
+        ['1/message']='Server connection counts by stat'
+        ['2/dsn']=$dsn
+        ['3/active']=$sv_active
+        ['4/idle']=$sv_idle
+        ['5/used']=$sv_used
+        ['6/tested']=$sv_tested
+        ['7/login']=$sv_login))"
+
+    info "$(declare -pA a=(
+        ['1/message']='Max waiting time'
+        ['2/dsn']=$dsn
+        ['3/value']=$maxwait))"
 )
 
 # requests count
@@ -64,16 +86,22 @@ instance_dsn=$(
 
 (
     row_list=$($PSQL -XAt -F ' ' -c "SHOW STATS" pgbouncer 2>&1) || \
-        die "Can not get a stats data for $instance_dsn: $row_list."
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a stats data'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$row_list))"
 
-    regex="(\S+) stats $instance_dsn (\S+) (\S+) (\S+) (\S+) \S+ \S+ \S+ \S+$"
+    regex="(\S+) stats $dsn (\S+) (\S+) (\S+) (\S+) \S+ \S+ \S+ \S+$"
 
     src_time=$(date +%s)
     while read src; do
-        src=$src_time' '$(echo $src | sed -r "s/^\S+/stats $instance_dsn/")
+        src=$src_time' '$(echo $src | sed -r "s/^\S+/stats $dsn/")
 
         [[ $src =~ $regex ]] ||
-            die "Can not match the stats data for $instance_dsn: $src."
+            die "$(declare -pA a=(
+                ['1/message']='Can not match the stats data'
+                ['2/dsn']=$dsn
+                ['3m/detail']=$src))"
 
         src_requests=$(( ${src_requests:-0} + ${BASH_REMATCH[2]} ))
         src_received=$(( ${src_received:-0} + ${BASH_REMATCH[3]} ))
@@ -82,7 +110,7 @@ instance_dsn=$(
     done <<< "$row_list"
 
     src=$(
-        echo "$src_time stats $instance_dsn $src_requests $src_received" \
+        echo "$src_time stats $dsn $src_requests $src_received" \
              "$src_sent $src_requests_time 0 0 0 0")
 
     snap=$(grep -E "$regex" $STAT_PGBOUNCER_FILE)
@@ -105,20 +133,34 @@ instance_dsn=$(
                  "($requests * 1000)" | \
             bc | awk '{printf "%.3f", $0}' || echo 'N/A')
 
-        info "Requests count for $instance_dsn: value $requests."
-        info "Network traffic for $instance_dsn, B/s:" \
-             "received $received_s, sent $sent_s."
-        info "Average request time for $instance_dsn, ms:" \
-             "value $avg_request_time."
+        info "$(declare -pA a=(
+            ['1/message']='Requests count'
+            ['2/dsn']=$dsn
+            ['3/value']=$requests))"
+
+        info "$(declare -pA a=(
+            ['1/message']='Network traffic, B/s'
+            ['2/dsn']=$dsn
+            ['3/received']=$received_s
+            ['4/sent']=$sent_s))"
+
+        info "$(declare -pA a=(
+            ['1/message']='Average request time, ms'
+            ['2/dsn']=$dsn
+            ['3/value']=$avg_request_time))"
     else
-        warn "No previous stats record for $instance_dsn" \
-             "in the snapshot file."
+        warn "$(declare -pA a=(
+            ['1/message']='No previous stats record in the snapshot file'
+            ['2/dsn']=$dsn))"
     fi
 
     error=$((
         sed -i -r "/$regex/d" $STAT_PGBOUNCER_FILE && \
         echo "$src" >> $STAT_PGBOUNCER_FILE) 2>&1) ||
-        die "Can not save the stats snapshot for $instance_dsn: $error."
+        die "$(declare -pA a=(
+            ['1/message']='Can not save the stats snapshot'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$error))"
 )
 
 # max database/user pool utilization
@@ -130,17 +172,22 @@ instance_dsn=$(
               | cut -d '|' -f 4,6 | sort) \
             <($PSQL -XAtc 'SHOW POOLS' pgbouncer \
               | cut -d '|' -f 1,2,3 | sort) 2>&1) || \
-        die "Can not get a pool utilization data for $instance_dsn: $result."
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a pool utilization data'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$result))"
 
     result=$(
         echo "$result" | grep -v 'pgbouncer|pgbouncer' \
         | sed -r 's/([^|]+?\|){2}/scale=2; 100 * /' | sed 's/|/\//' | bc \
-        | sort -nr | head -n 1 | awk '{printf "%.2f", $0}' )
+        | sort -nr | head -n 1 | awk '{printf "%.2f", $0}')
 
-    result=${result:-'N/A'}
+    result=${result:-null}
 
-    info "Max databse/user pool utilization for $instance_dsn, %:" \
-         "value $result."
+    info "$(declare -pA a=(
+        ['1/message']='Max databse/user pool utilization, %'
+        ['2/dsn']=$dsn
+        ['3/value']=$result))"
 )
 
 # per database/user pool utilization
@@ -151,36 +198,62 @@ instance_dsn=$(
             <($PSQL -XAtc 'SHOW DATABASES' pgbouncer \
               | cut -d '|' -f 4,6 | sort) \
             <($PSQL -XAtc 'SHOW POOLS' pgbouncer \
-              | cut -d '|' -f 1,2,3 | sort) 2>&1) || \
-        die "Can not get a pool utilization data for $instance_dsn: $result."
+              | cut -d '|' -f 1,2,3 | sort) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a pool utilization data'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$result))"
 
-    result=$(
+    row_list=$(
         echo "$result" | grep -v 'pgbouncer|pgbouncer' \
-        | sed -r 's/(.+)([0-9]+)\|([0-9]+)/scale=2; print "\1", 100 * \2\/\3, "\n"/' \
-        | sed -r 's/\|/ /g' | bc | sort -k 3nr | head -n 5 \
-        | paste -sd ',' | sed -r 's/,/, /g')
+            | sed -r 's/(.+)([0-9]+)\|([0-9]+)/scale=2; print "\1", 100 * \2\/\3, "\n"/' \
+            | bc | sort -k 3nr -t '|' | head -n 5)
 
-    info "Per databse/user pool utilization for $instance_dsn: $result."
+    regex='(\S+)\|(\S+)\|(\S+)$'
+
+    while read src; do
+        [[ $src =~ $regex ]] ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not match the pool utilization data'
+                ['2/dsn']=$dsn
+                ['3m/detail']=$src))"
+
+        db=${BASH_REMATCH[1]}
+        user=${BASH_REMATCH[2]}
+        percent=${BASH_REMATCH[3]}
+
+        info "$(declare -pA a=(
+            ['1/message']='Per databse/user pool utilization'
+            ['2/dsn']=$dsn
+            ['3/db']=$db
+            ['4/user']=$user
+            ['5/percent']=$percent))"
+    done <<< "$row_list"
 )
 
 # client pool utilization
 
 (
-    clients_count=$($PSQL -XAtc 'SHOW CLIENTS' pgbouncer 2>&1) || \
-        die "Can not get a clients data for $instance_dsn: $clients_count."
+    clients_count=$(($PSQL -XAtc 'SHOW CLIENTS' pgbouncer | wc -l) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a clients data'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$clients_count))"
 
-    clients_count=$(echo "$clients_count" | wc -l)
-
-    max_clients_conn=$($PSQL -XAtc 'SHOW CONFIG' pgbouncer 2>&1) || \
-        die "Can not get a config data for $instance_dsn: $clients_count."
-
-    max_clients_conn=$(
-        echo "$max_clients_conn" | grep max_client_conn | cut -d '|' -f 2)
+    max_clients_conn=$((
+        $PSQL -XAtc 'SHOW CONFIG' pgbouncer \
+            | grep max_client_conn | cut -d '|' -f 2) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a config data'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$max_clients_conn))"
 
     result=$(
         echo "scale=2; 100 * $clients_count / $max_clients_conn" | bc \
         | awk '{printf "%.2f", $0}')
 
-    info "Client pool utilization for $instance_dsn, %:" \
-         "value $result."
+    info "$(declare -pA a=(
+        ['1/message']='Client pool utilization'
+        ['2/dsn']=$dsn
+        ['3/value']=$result))"
 )
