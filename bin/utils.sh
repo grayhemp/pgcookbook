@@ -103,9 +103,15 @@ function contains() {
 # m - for multiline values with the 'plain' format
 
 function qq() {
-    printf '%q' "$1" | sed -r "s/^[$]?'|'$//g" | sed 's/"/\\"/g' \
-        | sed "s/\\\'/'/g" | sed -r 's/\\([ ,()])/\1/g' \
-        | sed -r 's/^(.*)$/"\1"/'
+    if [[ "$1" =~ \"|\\|\/|\\b|\\f|\\n|\\r|\\t|\\u[0-9A-Fa-f]{4} ]]; then
+        printf '%q' "$1" | sed -r "s/^[$]?'|'$//g" | sed 's/"/\\"/g' \
+            | sed "s/\\\'/'/g" | sed -r 's/\\([ ,()])/\1/g' \
+            | sed -r 's/^(.*)$/"\1"/'
+    elif [[ "$1" =~ [\ ,()] ]]; then
+        printf '"%q"' "$1" | sed -r 's/\\([ ,()])/\1/g'
+    else
+        printf '"%q"' "$1"
+    fi
 }
 
 function to_plain() {
