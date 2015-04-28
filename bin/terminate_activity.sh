@@ -29,20 +29,22 @@ pid_column=$($PSQL -XAt -c "$sql" postgres 2>&1) ||
         ['2m/detail']=$pid_column))"
 
 sql=$(cat <<EOF
+-- We use COPY in the query because the terminate conditions might contain
+-- comments
 COPY (
-SELECT
-    pg_terminate_backend($pid_column)::text, now() - xact_start,
-    datname, usename, application_name,
-    client_addr, client_hostname, client_port,
-    backend_start, xact_start, query_start, state_change,
-    waiting::text, state, query
-FROM pg_stat_activity
-WHERE $TERMINATE_CONDITIONS
+    SELECT
+        pg_terminate_backend($pid_column)::text, now() - xact_start,
+        datname, usename, application_name,
+        client_addr, client_hostname, client_port,
+        backend_start, xact_start, query_start, state_change,
+        waiting::text, state, query
+    FROM pg_stat_activity
+    WHERE $TERMINATE_CONDITIONS
 ) TO STDOUT (NULL 'null');
 EOF
 )
 
-result=$($PSQL -XAt -P 'null=null' -c "$sql" postgres 2>&1) ||
+result=$($PSQL -Xc "$sql" postgres 2>&1) ||
     die "$(declare -pA a=(
         ['1/message']='Can not perform termination'
         ['2m/detail']=$result))"
