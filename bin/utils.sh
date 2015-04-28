@@ -12,56 +12,13 @@ source $(dirname $0)/config.sh
 
 # Logging
 
-function die() {
-    local result=$(concat_arrays "$(get_log_headers 'ERROR')" "$1")
-    eval "declare -A result=${result#*=}"
-    $formatter "$(declare -p result)" 1>&2
-    echo
-    exit 1
-}
+base_headers=$(declare -Ap a=(
+    ['-4/timestamp']=$(date +'%Y-%m-%dT%H:%M:%S%z')
+    ['-3/host']=$(hostname)
+    ['-2/pid']=$$
+    ['-1/facility']=$(basename $0)))
 
-function warn() {
-    local result=$(concat_arrays "$(get_log_headers 'WARNING')" "$1")
-    eval "declare -A result=${result#*=}"
-    $formatter "$(declare -p result)" 1>&2
-    echo
-}
-
-function note() {
-    local result=$(concat_arrays "$(get_log_headers 'NOTICE')" "$1")
-    eval "declare -A result=${result#*=}"
-    $formatter "$(declare -p result)"
-    echo
-}
-
-function info() {
-    local result=$(concat_arrays "$(get_log_headers 'INFO')" "$1")
-    eval "declare -A result=${result#*=}"
-    $formatter "$(declare -p result)"
-    echo
-}
-
-function progress() {
-    local result=$(concat_arrays "$(get_log_headers 'PROGRESS')" "$1")
-    eval "declare -A result=${result#*=}"
-    $formatter "$(declare -p result)"
-    echo -ne "\r"
-}
-
-function get_log_headers() {
-    local arr
-    declare -A arr=(
-        ['-4/timestamp']=$(date +'%Y-%m-%dT%H:%M:%S%z')
-        ['-3/host']=$(hostname)
-        ['-2/pid']=$$
-        ['-1/facility']=$(basename $0)
-        ['-0/level']=$1)
-    echo -n "$(declare -p arr)"
-}
-
-# Structures
-
-function concat_arrays() {
+function concat_headers() {
     local arr1
     local arr2
     eval "declare -A arr1=${1#*=}"
@@ -69,8 +26,42 @@ function concat_arrays() {
     for key in "${!arr2[@]}"; do
         arr1["$key"]="${arr2[$key]}"
     done
+    arr1['0/level']="$3"
     echo -n "$(declare -p arr1)"
 }
+
+function die() {
+    local result=$(concat_headers "$base_headers" "$1" 'ERROR')
+    $formatter "$result" 1>&2
+    echo
+    exit 1
+}
+
+function warn() {
+    local result=$(concat_headers "$base_headers" "$1" 'WARNING')
+    $formatter "$result" 1>&2
+    echo
+}
+
+function note() {
+    local result=$(concat_headers "$base_headers" "$1" 'NOTICE')
+    $formatter "$result"
+    echo
+}
+
+function info() {
+    local result=$(concat_headers "$base_headers" "$1" 'INFO')
+    $formatter "$result"
+    echo
+}
+
+function progress() {
+    local result=$(concat_headers "$base_headers" "$1" 'PROGRESS')
+    $formatter "$result"
+    echo -ne "\r"
+}
+
+# Structures
 
 function contains() {
     local item
@@ -105,10 +96,10 @@ function contains() {
 function qq() {
     if [[ "$1" =~ \"|\\|\/|\\b|\\f|\\n|\\r|\\t|\\u[0-9A-Fa-f]{4} ]]; then
         printf '%q' "$1" | sed -r "s/^[$]?'|'$//g" | sed 's/"/\\"/g' \
-            | sed "s/\\\'/'/g" | sed -r 's/\\([ ,()])/\1/g' \
+            | sed "s/\\\'/'/g" | sed -r 's/\\([ ,(){}])/\1/g' \
             | sed -r 's/^(.*)$/"\1"/'
-    elif [[ "$1" =~ [\ ,()] ]]; then
-        printf '"%q"' "$1" | sed -r 's/\\([ ,()])/\1/g'
+    elif [[ "$1" =~ [\ ,(){}] ]]; then
+        printf '"%q"' "$1" | sed -r 's/\\([ ,(){}])/\1/g'
     else
         printf '"%q"' "$1"
     fi
@@ -128,9 +119,10 @@ function to_plain() {
         local key_flags="${BASH_REMATCH[1]}"
         local key_name="${BASH_REMATCH[2]}"
 
+        local key_str
         if ! contains 'timestamp host facility level pid message' "$key_name"
         then
-            echo -n "$(to_plain_token "$key_name")="
+            key_str="$key_name="
         fi
 
         if [[ "$key_flags" =~ m ]]; then
@@ -139,12 +131,12 @@ function to_plain() {
             echo -ne "\nEOS"
             (( ${#arr[@]} != $index )) && echo -ne "\n"
         elif [[ "$key_name" == 'message' ]]; then
-            echo -n "${arr[$key]}"
+            printf '%s%s' "$key_str" "${arr[$key]}"
             (( ${#arr[@]} > 6 )) && echo -ne ":"
         elif contains 'timestamp host facility level pid' "$key_name"; then
-            echo -n "${arr[$key]}"
+            printf '%s%s' "$key_str" "${arr[$key]}"
         else
-            echo -n "$(to_plain_token "${arr[$key]}")"
+            printf '%s%s' "$key_str" "$(to_plain_token "${arr[$key]}")"
         fi
 
         if [[ ! "$key_flags" =~ m ]]; then
@@ -157,7 +149,9 @@ function to_plain() {
 function to_plain_token() {
     if [[ -z "$1" ]]; then
         echo -n '""'
-    elif [[ "$1" =~ ^[a-Z0-9_]+(\.[a-Z0-9_]+)?$ ]]; then
+    elif [[ "$1" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        echo -n "$1"
+    elif [[ "$1" =~ ^[a-Z0-9_]+$ ]]; then
         echo -n "$1"
     else
         qq "$1"
@@ -178,14 +172,16 @@ function to_kv() {
         local key_flags="${BASH_REMATCH[1]}"
         local key_name="${BASH_REMATCH[2]}"
 
-        echo -n "$(to_kv_token "$key_name")=$(to_kv_token "${arr[$key]}")"
+        printf '%s=%s' "$key_name" "$(to_kv_token "${arr[$key]}")"
         (( ${#arr[@]} != $index )) && echo -n ' '
         (( index++ ))
     done <<< "$key_list"
 }
 
 function to_kv_token() {
-    if [[ "$1" =~ ^[a-Z0-9_]+$ ]]; then
+    if [[ "$1" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        echo -n "$1"
+    elif [[ "$1" =~ ^[a-Z0-9_-:.]+$ ]]; then
         echo -n "$1"
     else
         qq "$1"
@@ -208,22 +204,12 @@ function to_json() {
         local key_flags="${BASH_REMATCH[1]}"
         local key_name="${BASH_REMATCH[2]}"
 
-        echo -n "$(to_json_key "$key_name"): $(to_json_value "${arr[$key]}")"
+        printf '"%s": %s' "$key_name" "$(to_json_value "${arr[$key]}")"
         (( ${#arr[@]} != $index )) && echo -n ', '
         (( index++ ))
     done <<< "$key_list"
 
     echo -n '}'
-}
-
-function to_json_key() {
-    if [[ -z "$1" ]]; then
-        formatter='to_text'
-        die "$(declare -A a=(
-            ['1/message']=$(to_text_token 'Empty JSON keys are not allowed')))"
-    fi
-
-    qq "$1"
 }
 
 function to_json_value() {
