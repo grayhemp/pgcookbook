@@ -205,9 +205,9 @@ PITR_KEEP_BACKUPS=2
 
 STAT_SYSTEM_FILE='/tmp/stat_system'
 
-# stat_instance.sh
+# stat_postgres.sh
 
-STAT_INSTANCE_FILE='/tmp/stat_instance'
+STAT_POSTGRES_FILE='/tmp/stat_postagres'
 
 # stat_pgbouncer.sh
 
