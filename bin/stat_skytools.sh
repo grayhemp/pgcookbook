@@ -2,7 +2,7 @@
 
 # stat_skytools.sh - Skytools statistics collecting script.
 #
-# Collects a variety of Skytools statistics. Compatible with Skytools#
+# Collects a variety of Skytools statistics. Compatible with Skytools
 # versions >=3.0.
 #
 # Copyright (c) 2015 Sergey Konoplev
@@ -15,9 +15,25 @@ source $(dirname $0)/utils.sh
 # pgqd is running
 
 (
-    info "pgqd is running: value "$(
-        ps --no-headers -C pgqd 1>/dev/null 2>&1 && echo 't' || echo 'f')'.'
+    info "$(declare -pA a=(
+        ['1/message']='PgQ daemon is running'
+        ['2/value']=$(
+            ps --no-headers -C pgqd 1>/dev/null 2>&1 &&
+                echo 'true' || echo 'false')))"
 )
+
+db_list_sql=$(cat <<EOF
+SELECT datname
+FROM pg_database
+WHERE datallowconn
+ORDER BY pg_database_size(oid) DESC
+EOF
+)
+
+db_list=$($PSQL -XAt -c "$db_list_sql" 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not get a database list'
+        ['2m/detail']=$db_list))"
 
 # per database top queues by ticker lag
 # per database top consumers by lag
@@ -44,58 +60,96 @@ ORDER BY 3 DESC LIMIT 5
 EOF
 )
 
-(
-    db_list=$(
-        $PSQL -XAt -c "SELECT datname FROM pg_database WHERE datallowconn"
-        2>&1) ||
-        die "Can not get a database list: $src."
-
+for db in $db_list; do
     (
-        for db in $db_list; do
-            schema_line=$($PSQL -XAtc '\dn pgq' $db 2>&1) ||
-                die "Can not check pgq schema for $db: $schema_line."
+        schema_line=$(
+            $PSQL -XAt -c '\dn pgq' $db 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not check pgq schema for per database charts'
+                ['2/db']=$db
+                ['3m/detail']=$schema_line))"
 
-            [ -z "$schema_line" ] && continue
-
+        if [[ -z "$schema_line" ]]; then
+            note "$(declare -pA a=(
+                ['1/message']='Can not stat PgQ for per database charts, it is not instaled'
+                ['2/db']=$db))"
+        else
             (
-                result=$(
-                    $PSQL -XAt -R ', ' -F ' '  -c "$queue_lag_sql" $db 2>&1) ||
-                    die "Can not get a queue lag data for $db: $result."
+                src=$($PSQL -Xc "\copy ($queue_lag_sql) to stdout (NULL 'null')" $db 2>&1) ||
+                    die "$(declare -pA a=(
+                        ['1/message']='Can not get a queue ticker lag data'
+                        ['2/db']=$db
+                        ['3m/detail']=$src))"
 
-                info "Top queues by ticker lag for $db, s: ${result:-N/A}."
+                if [[ -z "$src" ]]; then
+                    info "$(declare -pA a=(
+                        ['1/message']='No queues'
+                        ['2/db']=$db))"
+                else
+                    while IFS=$'\t' read -r -a l; do
+                        info "$(declare -pA a=(
+                            ['1/message']='Top queues by ticker lag, s'
+                            ['2/db']=$db
+                            ['3/queue_name']=${l[0]}
+                            ['4/ticker_lag']=${l[1]}))"
+                    done <<< "$src"
+                fi
             )
 
             (
-                result=$(
-                    $PSQL -XAt -R ', ' -F ' '  -c "$consumer_lag_sql" $db \
-                    2>&1) ||
-                    die "Can not get a consumer lag data for $db: $result."
+                src=$($PSQL -Xc "\copy ($consumer_lag_sql) to stdout (NULL 'null')" $db 2>&1) ||
+                    die "$(declare -pA a=(
+                        ['1/message']='Can not get a consumer lag data'
+                        ['2/db']=$db
+                        ['3m/detail']=$src))"
 
-                info "Top consumers by lag for $db, s: ${result:-N/A}."
+                if [[ -z "$src" ]]; then
+                    info "$(declare -pA a=(
+                        ['1/message']='No consumers by lag'
+                        ['2/db']=$db))"
+                else
+                    while IFS=$'\t' read -r -a l; do
+                        info "$(declare -pA a=(
+                            ['1/message']='Top consumers by lag, s'
+                            ['2/db']=$db
+                            ['3/queue_name']=${l[0]}
+                            ['4/consumer_name']=${l[1]}
+                            ['5/lag']=${l[2]}))"
+                    done <<< "$src"
+                fi
             )
 
             (
-                result=$(
-                    $PSQL -XAt -R ', ' -F ' '  -c "$consumer_last_seen_sql" \
-                    $db 2>&1) ||
-                    die "Can not get a consumers last seen data for $db:" \
-                        "$result."
+                src=$($PSQL -Xc "\copy ($consumer_last_seen_sql) to stdout (NULL 'null')" $db 2>&1) ||
+                    die "$(declare -pA a=(
+                        ['1/message']='Can not get a consumer last seen data'
+                        ['2/db']=$db
+                        ['3m/detail']=$src))"
 
-                info "Top consumers by last seen age for $db, s:" \
-                     "${result:-N/A}."
+                if [[ -z "$src" ]]; then
+                    info "$(declare -pA a=(
+                        ['1/message']='No consumers by last seen'
+                        ['2/db']=$db))"
+                else
+                    while IFS=$'\t' read -r -a l; do
+                        info "$(declare -pA a=(
+                            ['1/message']='Top consumers by last seen, s'
+                            ['2/db']=$db
+                            ['3/queue_name']=${l[0]}
+                            ['4/consumer_name']=${l[1]}
+                            ['5/last_seen']=${l[2]}))"
+                    done <<< "$src"
+                fi
             )
-        done
+       fi
     )
-)
+done
 
 # max queue ticker lag
 # max queue ticker lag fraction of idle period
 # total queue events per second
-# max consumers lag
-# max consumers last seen age
-# total consumer pending events
 
-queue_sql=$(cat <<EOF
+queue_aggs_sql=$(cat <<EOF
 SELECT
     max(extract(epoch from ticker_lag))::integer,
     max(
@@ -106,7 +160,64 @@ FROM pgq.get_queue_info()
 EOF
 )
 
-consumer_sql=$(cat <<EOF
+(
+    max_ticker_lag=0
+    max_fraction=0
+    total_ev_per_sec=0
+
+    for db in $db_list; do
+        schema_line=$(
+            $PSQL -XAt -c '\dn pgq' $db 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not check pgq schema for queue aggregates'
+                ['2/db']=$db
+                ['3m/detail']=$schema_line))"
+
+        if [[ -z "$schema_line" ]]; then
+            note "$(declare -pA a=(
+                ['1/message']='Can not stat PgQ for queue aggregates, it is not instaled'
+                ['2/db']=$db))"
+        else
+            src=$($PSQL -Xc "\copy ($queue_aggs_sql) to stdout (NULL 'null')" $db 2>&1) ||
+                die "$(declare -pA a=(
+                    ['1/message']='Can not get a queue aggregates data'
+                    ['2/db']=$db
+                    ['3m/detail']=$src))"
+
+            IFS=$'\t' read -r -a l <<< "$src"
+
+            max_ticker_lag=$(
+                echo "if ($max_ticker_lag < ${l[0]}) " \
+                    "${l[0]} else $max_ticker_lag" \
+                    | bc)
+
+            max_fraction=$(
+                echo "if ($max_fraction < ${l[1]})" \
+                    "${l[1]} else $max_fraction" \
+                    | bc | awk '{printf "%.2f", $0}')
+
+            total_ev_per_sec=$(( $total_ev_per_sec + ${l[2]} ))
+        fi
+    done
+
+    info "$(declare -pA a=(
+        ['1/message']='Max queue ticker lag, s'
+        ['2/value']=$max_ticker_lag))"
+
+    info "$(declare -pA a=(
+        ['1/message']='Max queue ticker lag fraction of idle period'
+        ['2/value']=$max_fraction))"
+
+    info "$(declare -pA a=(
+        ['1/message']='Total queue events count, /s'
+        ['2/value']=$total_ev_per_sec))"
+)
+
+# max consumers lag
+# max consumers last seen age
+# total consumer pending events
+
+consumer_aggs_sql=$(cat <<EOF
 SELECT
     max(extract(epoch from lag))::integer,
     max(extract(epoch from last_seen))::integer,
@@ -116,92 +227,54 @@ EOF
 )
 
 (
-    db_list=$(
-        $PSQL -XAt -c "SELECT datname FROM pg_database WHERE datallowconn"
-        2>&1) ||
-        die "Can not get a database list: $src."
+    max_lag=0
+    max_last_seen=0
+    total_pending_events=0
 
-    queue_regex='(\S+) (\S+) (\S+)'
+    for db in $db_list; do
+        schema_line=$(
+            $PSQL -XAt -c '\dn pgq' $db 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not check pgq schema for consumer aggregates'
+                ['2/db']=$db
+                ['3m/detail']=$schema_line))"
 
-    (
-        for db in $db_list; do
-            schema_line=$($PSQL -XAtc '\dn pgq' $db 2>&1) ||
-                die "Can not check pgq schema: $schema_line."
+        if [[ -z "$schema_line" ]]; then
+            note "$(declare -pA a=(
+                ['1/message']='Can not stat PgQ for consumer aggregates, it is not instaled'
+                ['2/db']=$db))"
+        else
+            src=$($PSQL -Xc "\copy ($consumer_aggs_sql) to stdout (NULL 'null')" $db 2>&1) ||
+                die "$(declare -pA a=(
+                    ['1/message']='Can not get a consumer aggregates data'
+                    ['2/db']=$db
+                    ['3m/detail']=$src))"
 
-            [ -z "$schema_line" ] && continue
+            IFS=$'\t' read -r -a l <<< "$src"
 
-            src=$($PSQL -XAt -R ' ' -F ' '  -c "$queue_sql" $db 2>&1) ||
-                die "Can not get a queue data for $db: $src."
+            max_lag=$(
+                echo "if ($max_lag < ${l[0]}) ${l[0]} else $max_lag" | bc)
 
-            [ "$src" == '  ' ] && continue
-
-            [[ $src =~ $queue_regex ]] ||
-                die "Can not match the queue data: $src."
-
-            ticker_lag=${BASH_REMATCH[1]}
-            fraction=${BASH_REMATCH[2]}
-            ev_per_sec=${BASH_REMATCH[3]}
-
-            max_ticker_lag=${max_ticker_lag:-0}
-            max_ticker_lag=$(
-                echo "if ($max_ticker_lag < $ticker_lag)" \
-                     "$ticker_lag else $max_ticker_lag" \
-                | bc)
-
-            max_fraction=${max_fraction:-0}
-            max_fraction=$(
-                echo "if ($max_fraction < $fraction)" \
-                     "$fraction else $max_fraction" \
-                | bc | awk '{printf "%.2f", $0}')
-
-            total_ev_per_sec=$(( ${total_ev_per_sec:-0} + $ev_per_sec))
-        done
-
-        info "Max queue ticker lag, s: value ${max_ticker_lag:-N/A}."
-        info "Max queue ticker lag fraction of idle period: value" \
-             "${max_fraction:-N/A}."
-        info "Total queue events count, /s: value ${total_ev_per_sec:-N/A}."
-    )
-
-    consumer_regex='(\S+) (\S+) (\S+)'
-
-    (
-        for db in $db_list; do
-            schema_line=$($PSQL -XAtc '\dn pgq' $db 2>&1) ||
-                die "Can not check pgq schema: $schema_line."
-
-            [ -z "$schema_line" ] && continue
-
-            src=$($PSQL -XAt -R ' ' -F ' '  -c "$consumer_sql" $db 2>&1) ||
-                die "Can not get a consumer data for $db: $src."
-
-            [ "$src" == '  ' ] && continue
-
-            [[ $src =~ $consumer_regex ]] ||
-                die "Can not match the consumer data: $src."
-
-            lag=${BASH_REMATCH[1]}
-            last_seen=${BASH_REMATCH[2]}
-            pending_events=${BASH_REMATCH[3]}
-
-            max_lag=${max_lag:-0}
-            max_lag=$(echo "if ($max_lag < $lag) $lag else $max_lag" | bc)
-
-            max_last_seen=${max_last_seen:-0}
             max_last_seen=$(
-                echo "if ($max_last_seen < $last_seen)" \
-                     "$last_seen else $max_last_seen" \
-                | bc)
+                echo "if ($max_last_seen < ${l[1]})" \
+                    "${l[1]} else $max_last_seen" \
+                    | bc)
 
-            total_pending_events=$((
-                ${total_pending_events:-0} + $pending_events))
-        done
+            total_pending_events=$(( $total_pending_events + ${l[2]} ))
+        fi
+    done
 
-        info "Max consumer lag, s: value ${max_lag:-N/A}."
-        info "Max consumer last seen age, s: value ${max_last_seen:-N/A}."
-        info "Total consumer pending events:" \
-             "count ${total_pending_events:-N/A}."
-    )
+    info "$(declare -pA a=(
+        ['1/message']='Max consumer lag, s'
+        ['2/value']=$max_lag))"
+
+    info "$(declare -pA a=(
+        ['1/message']='Max consumer last seen age, s'
+        ['2/value']=$max_last_seen))"
+
+    info "$(declare -pA a=(
+        ['1/message']='Total consumer pending events'
+        ['2/value']=$total_pending_events))"
 )
 
 # number of queues
@@ -215,28 +288,37 @@ EOF
 )
 
 (
-    db_list=$(
-        $PSQL -XAt -c "SELECT datname FROM pg_database WHERE datallowconn"
-        2>&1) ||
-        die "Can not get a database list: $src."
-
-    regex='(\S+) (\S+)'
+    queue_count=0
+    consumer_count=0
 
     for db in $db_list; do
-        schema_line=$($PSQL -XAtc '\dn pgq' $db 2>&1) ||
-            die "Can not check pgq schema: $schema_line."
+        schema_line=$(
+            $PSQL -XAt -c '\dn pgq' $db 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not check pgq schema for objects'
+                ['2/db']=$db
+                ['3m/detail']=$schema_line))"
 
-        [ -z "$schema_line" ] && continue
+        if [[ -z "$schema_line" ]]; then
+            note "$(declare -pA a=(
+                ['1/message']='Can not stat PgQ for objects, it is not instaled'
+                ['2/db']=$db))"
+        else
+            src=$($PSQL -Xc "\copy ($sql) to stdout (NULL 'null')" $db 2>&1) ||
+                die "$(declare -pA a=(
+                    ['1/message']='Can not get a queue and consumer counters data'
+                    ['2/db']=$db
+                    ['3m/detail']=$src))"
 
-        src=$($PSQL -XAt -R ' ' -F ' '  -c "$sql" $db 2>&1) ||
-            die "Can not get a queue and consumer counters data for $db: $src."
+            IFS=$'\t' read -r -a l <<< "$src"
 
-        [[ $src =~ $regex ]] ||
-            die "Can not match the queue and consumer counters data: $src."
-
-        queue_count=$(( ${queue_count:-0} + ${BASH_REMATCH[1]} ))
-        consumer_count=$(( ${consumer_count:-0} + ${BASH_REMATCH[2]} ))
+            queue_count=$(( $queue_count + ${l[0]} ))
+            consumer_count=$(( $consumer_count + ${l[1]} ))
+        fi
     done
 
-    info "Number of objects: queues $queue_count, consumer $consumer_count."
+    info "$(declare -pA a=(
+        ['1/message']='Number of objects'
+        ['2/queues']=$queue_count
+        ['3/consumers']=$consumer_count))"
 )
