@@ -126,9 +126,7 @@ function to_plain() {
         fi
 
         if [[ "$key_flags" =~ m ]]; then
-            echo -ne "<<EOS\n"
-            echo -ne "${arr[$key]}"
-            echo -ne "\nEOS"
+            printf '%s<<EOS\n%s\nEOS' "$key_str" "${arr[$key]}"
             (( ${#arr[@]} != $index )) && echo -ne "\n"
         elif [[ "$key_name" == 'message' ]]; then
             printf '%s%s' "$key_str" "${arr[$key]}"
