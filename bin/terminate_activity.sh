@@ -5,7 +5,7 @@
 # Performs server activity check and terminates sessions that comply
 # to TERMINATE_CONDITIONS. The script is made to run as a cron job.
 #
-# Copyright (c) 2014 Sergey Konoplev
+# Copyright (c) 2015 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
