@@ -15,7 +15,7 @@
 # dbname in the STAT_REPLICA_DSN it will be substituted as
 # STAT_DBNAME, automatically. Compatible with PostgreSQL >=9.2.
 #
-# Copyright (c) 2013-2014 Sergey Konoplev
+# Copyright (c) 2013-2015 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
@@ -23,16 +23,23 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 table_version=1
-function_version=2
+function_version=3
 
 sql=$(cat <<EOF
 DO \$do\$
 DECLARE name text;
 BEGIN
-    CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+    IF
+        NOT EXISTS (
+            SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
+    THEN
+        CREATE EXTENSION pg_stat_statements;
+    END IF;
 
     IF '$STAT_REPLICA_DSN' <> '' THEN
-        CREATE EXTENSION IF NOT EXISTS dblink;
+        IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'dblink') THEN
+            CREATE EXTENSION dblink;
+        END IF;
     END IF;
 
     IF
@@ -79,11 +86,29 @@ BEGIN
 
         CREATE OR REPLACE FUNCTION public.stat_statements_get_report(
             i_replica_dsn text,
-            i_since timestamp with time zone, i_till timestamp with time zone,
-            i_n integer, i_order integer, -- 0 - time, 1 - calls, 2 - IO
-            OUT o_report text)
-        RETURNS text LANGUAGE 'plpgsql' AS \$function\$
+            i_since timestamp with time zone,
+            i_till timestamp with time zone,
+            i_n integer,
+            i_order integer, -- 0 - time, 1 - calls, 2 - IO
+            OUT o_position integer,
+            OUT o_time numeric(18,3),
+            OUT o_io_time numeric(18,3),
+            OUT o_time_percent numeric(5,2),
+            OUT o_io_time_percent numeric(5,2),
+            OUT o_io_time_perc_rel numeric(5,2),
+            OUT o_time_avg numeric(18,3),
+            OUT o_io_time_avg numeric(18,3),
+            OUT o_calls integer,
+            OUT o_calls_percent numeric(5,2),
+            OUT o_rows integer,
+            OUT o_rows_avg numeric(18,3),
+            OUT o_users text,
+            OUT o_dbs text,
+            OUT o_query text
+        )
+        RETURNS SETOF record LANGUAGE 'plpgsql' AS \$function\$
         BEGIN
+            RETURN QUERY (
             WITH q1 AS (
                 SELECT
                     sum(total_time) AS time,
@@ -137,55 +162,38 @@ BEGIN
                         WHEN row_number() OVER () > i_n THEN i_n + 1
                         ELSE row_number() OVER () END AS row_number
                 FROM q1
-            ), q3 AS (
-                SELECT
-                    row_number,
-                    sum(time)::numeric(18,3) AS time,
-                    sum(io_time)::numeric(18,3) AS io_time,
-                    sum(time_percent)::numeric(5,2) AS time_percent,
-                    sum(io_time_percent)::numeric(5,2) AS io_time_percent,
-                    sum(io_time_perc_rel)::numeric(5,2) AS io_time_perc_rel,
-                    sum(time_avg)::numeric(18,3) AS time_avg,
-                    sum(io_time_avg)::numeric(18,3) AS io_time_avg,
-                    sum(calls) AS calls,
-                    sum(calls_percent)::numeric(5,2) AS calls_percent,
-                    sum(rows) AS rows,
-                    (
-                        sum(rows)::numeric / sum(calls)
-                    )::numeric(18,3) AS rows_avg,
-                    array_to_string(
-                        array(
-                            SELECT DISTINCT unnest(
-                                string_to_array(string_agg(users, ' '), ' '))
-                        ), ', '
-                    ) AS users,
-                    array_to_string(
-                        array(
-                            SELECT DISTINCT unnest(
-                                string_to_array(string_agg(dbs, ' '), ' '))
-                        ), ', '
-                    ) AS dbs,
-                    query
-                FROM q2
-                GROUP by query, row_number
-                ORDER BY row_number
             )
-            SELECT INTO o_report string_agg(
-                format(
-                    E'Position: %s\n' ||
-                    E'Time: %s%%, %s ms, %s ms avg\n' ||
-                    E'IO time: %s%% (%s%% rel), %s ms, %s ms avg\n' ||
-                    E'Calls: %s%%, %s\n' ||
-                    E'Rows: %s, %s avg\n' ||
-                    E'Users: %s\n'||
-                    E'Databases: %s\n\n%s',
-                    row_number, time_percent, time, time_avg, io_time_percent,
-                    io_time_perc_rel, io_time, io_time_avg, calls_percent,
-                    calls, rows, rows_avg, users, dbs, query),
-                E'\n\n')
-            FROM q3;
-
-            RETURN;
+            SELECT
+                row_number::integer AS position,
+                sum(time)::numeric(18,3) AS time,
+                sum(io_time)::numeric(18,3) AS io_time,
+                sum(time_percent)::numeric(5,2) AS time_percent,
+                sum(io_time_percent)::numeric(5,2) AS io_time_percent,
+                sum(io_time_perc_rel)::numeric(5,2) AS io_time_perc_rel,
+                sum(time_avg)::numeric(18,3) AS time_avg,
+                sum(io_time_avg)::numeric(18,3) AS io_time_avg,
+                sum(calls)::integer AS calls,
+                sum(calls_percent)::numeric(5,2) AS calls_percent,
+                sum(rows)::integer AS rows,
+                (
+                    sum(rows)::numeric / sum(calls)
+                )::numeric(18,3) AS rows_avg,
+                array_to_string(
+                    array(
+                        SELECT DISTINCT unnest(
+                            string_to_array(string_agg(users, ' '), ' '))
+                    ), ', '
+                )::text AS users,
+                array_to_string(
+                    array(
+                        SELECT DISTINCT unnest(
+                            string_to_array(string_agg(dbs, ' '), ' '))
+                    ), ', '
+                )::text AS dbs,
+                query::text
+            FROM q2
+            GROUP by query, row_number
+            ORDER BY row_number);
         END \$function\$;
 
         FOR name IN
@@ -201,17 +209,20 @@ BEGIN
 END \$do\$;
 EOF
 )
-error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
-    die "Can not create environment: $error."
+
+error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not create environment'
+        ['2m/detail']=$error))"
 
 if $STAT_SNAPSHOT; then
     delete_sql=$(cat <<EOF
 DELETE FROM public.stat_statements
 WHERE created < now() - '$STAT_KEEP_SNAPSHOTS'::interval;
 EOF
-)
+    )
 
-    if [ -z $STAT_REPLICA_DSN ]; then
+    if [[ -z "$STAT_REPLICA_DSN" ]]; then
         sql=$(cat <<EOF
 $delete_sql
 INSERT INTO public.stat_statements
@@ -256,25 +267,52 @@ EOF
         )
     fi
 
-    error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
-        die "Can not get a snapshot: $error."
-else
-    [ $STAT_ORDER -eq 0 ] && order='time'
-    [ $STAT_ORDER -eq 1 ] && order='calls'
-    [ $STAT_ORDER -eq 2 ] && order='IO time'
+    error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not make a snapshot'
+            ['2m/detail']=$error))"
 
-    if [ -z $STAT_REPLICA_DSN ]; then
-        info "Origin report ordered by $order."
+    info "$(declare -pA a=(
+        ['1/message']='Snapshot has been made'))"
+else
+    [[ $STAT_ORDER -eq 0 ]] && order='time'
+    [[ $STAT_ORDER -eq 1 ]] && order='calls'
+    [[ $STAT_ORDER -eq 2 ]] && order='IO time'
+
+    if [[ -z "$STAT_REPLICA_DSN" ]]; then
+        message="Origin report ordered by $order"
     else
-        info "Replica report for '$STAT_REPLICA_DSN' ordered by $order."
+        message="Replica report for '$STAT_REPLICA_DSN' ordered by $order"
     fi
 
-   sql=$(cat <<EOF
-SELECT public.stat_statements_get_report(
-    '$STAT_REPLICA_DSN', '$STAT_SINCE', '$STAT_TILL', $STAT_N, $STAT_ORDER);
+    sql=$(cat <<EOF
+SELECT * FROM public.stat_statements_get_report(
+    '$STAT_REPLICA_DSN', '$STAT_SINCE', '$STAT_TILL', $STAT_N, $STAT_ORDER)
 EOF
     )
-    report=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
-        die "Can not get a report: $report."
-    echo "$report"
+
+    src=$($PSQL -Xc "\copy ($sql) to stdout (NULL 'null')" $STAT_DBNAME 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a report'
+            ['2m/detail']=$src))"
+
+    while IFS=$'\t' read -r -a l; do
+        info "$(declare -pA a=(
+            ['1/message']=$message
+            ['2/position']=${l[0]}
+            ['3/time']=${l[1]}
+            ['4/io_time']=${l[2]}
+            ['5/time_percent']=${l[3]}
+            ['6/io_time_percent']=${l[4]}
+            ['7/io_time_perc_rel']=${l[5]}
+            ['8/time_avg']=${l[6]}
+            ['9/io_time_avg']=${l[7]}
+            ['10/calls']=${l[8]}
+            ['11/calls_percent']=${l[9]}
+            ['12/rows']=${l[10]}
+            ['13/rows_avg']=${l[11]}
+            ['14/users']=${l[12]}
+            ['15/dbs']=${l[13]}
+            ['16m/query']=$(echo -e "${l[14]}")))"
+    done <<< "$src"
 fi

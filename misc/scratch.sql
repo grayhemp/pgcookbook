@@ -58,11 +58,29 @@ BEGIN
 
         CREATE OR REPLACE FUNCTION public.stat_statements_get_report(
             i_replica_dsn text,
-            i_since timestamp with time zone, i_till timestamp with time zone,
-            i_n integer, i_order integer, -- 0 - time, 1 - calls, 2 - IO
-            OUT o_report text)
-        RETURNS text LANGUAGE 'plpgsql' AS $function$
+            i_since timestamp with time zone,
+            i_till timestamp with time zone,
+            i_n integer,
+            i_order integer, -- 0 - time, 1 - calls, 2 - IO
+            OUT o_position integer,
+            OUT o_time numeric(18,3),
+            OUT o_io_time numeric(18,3),
+            OUT o_time_percent numeric(5,2),
+            OUT o_io_time_percent numeric(5,2),
+            OUT o_io_time_perc_rel numeric(5,2),
+            OUT o_time_avg numeric(18,3),
+            OUT o_io_time_avg numeric(18,3),
+            OUT o_calls integer,
+            OUT o_calls_percent numeric(5,2),
+            OUT o_rows integer,
+            OUT o_rows_avg numeric(18,3),
+            OUT o_users text,
+            OUT o_dbs text,
+            OUT o_query text
+        )
+        RETURNS SETOF record LANGUAGE 'plpgsql' AS \$function\$
         BEGIN
+            RETURN QUERY (
             WITH q1 AS (
                 SELECT
                     sum(total_time) AS time,
@@ -76,8 +94,8 @@ BEGIN
                     string_agg(usename, ' ') AS users,
                     string_agg(datname, ' ') AS dbs,
                     regexp_replace(
-                        regexp_replace(s, '--(.*?$)', '-- [comment]', 'gm'),
-                        E'\\/\\*(.*?)\\*\\/', '/* [comment] */', 'gs'
+                        regexp_replace(query, '--(.*?$)', '-- [comment]', 'gm'),
+                        E'\\\\/\\\\*(.*?)\\\\*\\\\/', '/* [comment] */', 'gs'
                     ) AS raw_query
                 FROM public.stat_statements
                 LEFT JOIN pg_catalog.pg_user ON userid = usesysid
@@ -85,7 +103,7 @@ BEGIN
                 WHERE
                     replica_dsn = i_replica_dsn AND
                     created > i_since AND created <= i_till
-                GROUP BY query
+                GROUP BY raw_query
                 ORDER BY
                     CASE
                         WHEN i_order = 0 THEN sum(total_time)
@@ -116,56 +134,39 @@ BEGIN
                         WHEN row_number() OVER () > i_n THEN i_n + 1
                         ELSE row_number() OVER () END AS row_number
                 FROM q1
-            ), q3 AS (
-                SELECT
-                    row_number,
-                    sum(time)::numeric(18,3) AS time,
-                    sum(io_time)::numeric(18,3) AS io_time,
-                    sum(time_percent)::numeric(5,2) AS time_percent,
-                    sum(io_time_percent)::numeric(5,2) AS io_time_percent,
-                    sum(io_time_perc_rel)::numeric(5,2) AS io_time_perc_rel,
-                    sum(time_avg)::numeric(18,3) AS time_avg,
-                    sum(io_time_avg)::numeric(18,3) AS io_time_avg,
-                    sum(calls) AS calls,
-                    sum(calls_percent)::numeric(5,2) AS calls_percent,
-                    sum(rows) AS rows,
-                    (
-                        sum(rows)::numeric / sum(calls)
-                    )::numeric(18,3) AS rows_avg,
-                    array_to_string(
-                        array(
-                            SELECT DISTINCT unnest(
-                                string_to_array(string_agg(users, ' '), ' '))
-                        ), ', '
-                    ) AS users,
-                    array_to_string(
-                        array(
-                            SELECT DISTINCT unnest(
-                                string_to_array(string_agg(dbs, ' '), ' '))
-                        ), ', '
-                    ) AS dbs,
-                    query
-                FROM q2
-                GROUP by query, row_number
-                ORDER BY row_number
             )
-            SELECT INTO o_report string_agg(
-                format(
-                    E'Position: %s\n' ||
-                    E'Time: %s%%, %s ms, %s ms avg\n' ||
-                    E'IO time: %s%% (%s%% rel), %s ms, %s ms avg\n' ||
-                    E'Calls: %s%%, %s\n' ||
-                    E'Rows: %s, %s avg\n' ||
-                    E'Users: %s\n'||
-                    E'Databases: %s\n\n%s',
-                    row_number, time_percent, time, time_avg, io_time_percent,
-                    io_time_perc_rel, io_time, io_time_avg, calls_percent,
-                    calls, rows, rows_avg, users, dbs, query),
-                E'\n\n')
-            FROM q3;
-
-            RETURN;
-        END $function$;
+            SELECT
+                row_number::integer AS position,
+                sum(time)::numeric(18,3) AS time,
+                sum(io_time)::numeric(18,3) AS io_time,
+                sum(time_percent)::numeric(5,2) AS time_percent,
+                sum(io_time_percent)::numeric(5,2) AS io_time_percent,
+                sum(io_time_perc_rel)::numeric(5,2) AS io_time_perc_rel,
+                sum(time_avg)::numeric(18,3) AS time_avg,
+                sum(io_time_avg)::numeric(18,3) AS io_time_avg,
+                sum(calls)::integer AS calls,
+                sum(calls_percent)::numeric(5,2) AS calls_percent,
+                sum(rows)::integer AS rows,
+                (
+                    sum(rows)::numeric / sum(calls)
+                )::numeric(18,3) AS rows_avg,
+                array_to_string(
+                    array(
+                        SELECT DISTINCT unnest(
+                            string_to_array(string_agg(users, ' '), ' '))
+                    ), ', '
+                )::text AS users,
+                array_to_string(
+                    array(
+                        SELECT DISTINCT unnest(
+                            string_to_array(string_agg(dbs, ' '), ' '))
+                    ), ', '
+                )::text AS dbs,
+                query::text
+            FROM q2
+            GROUP by query, row_number
+            ORDER BY row_number);
+        END \$function\$;
 
         FOR name IN
             SELECT p.oid::regprocedure

@@ -129,7 +129,7 @@ function ARCHIVE_COMMAND_AFTER_DROP() {
 
 # stat_statements.sh
 
-STAT_DBNAME='dbname1'
+STAT_DBNAME='postgres'
 STAT_REPLICA_DSN=${STAT_REPLICA_DSN:-}
 STAT_SNAPSHOT=${STAT_SNAPSHOT:-false}
 STAT_SINCE=${STAT_SINCE:-$(date -I)}
