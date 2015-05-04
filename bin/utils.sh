@@ -147,7 +147,7 @@ function to_plain() {
 function to_plain_token() {
     if [[ -z "$1" ]]; then
         echo -n '""'
-    elif [[ "$1" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    elif [[ "$1" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
         echo -n "$1"
     elif [[ "$1" =~ ^[a-Z0-9_]+$ ]]; then
         echo -n "$1"
@@ -177,7 +177,7 @@ function to_kv() {
 }
 
 function to_kv_token() {
-    if [[ "$1" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    if [[ "$1" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
         echo -n "$1"
     elif [[ "$1" =~ ^[a-Z0-9_-:.]+$ ]]; then
         echo -n "$1"
