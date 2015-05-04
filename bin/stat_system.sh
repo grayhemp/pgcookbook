@@ -17,244 +17,226 @@ touch $STAT_SYSTEM_FILE
 # load average 1, 5, 15
 
 (
-    regex='^(\S+) (\S+) (\S+)'
-    src=$(cat /proc/loadavg 2>&1) ||
-        die "Can not get a load average data: $src."
+    src=$(cat /proc/loadavg)
 
-    [[ $src =~ $regex ]] || die "Can not match the load average data: $src."
-
-    _1min=${BASH_REMATCH[1]}
-    _5min=${BASH_REMATCH[2]}
-    _15min=${BASH_REMATCH[3]}
-
-    info "Load average: 1min $_1min, 5min $_5min, 15min $_15min."
+    IFS=$' ' read -r -a l <<< "$src"
+    info "$(declare -pA a=(
+        ['1/message']='Load average'
+        ['2/1min']=${l[0]}
+        ['3/5min']=${l[1]}
+        ['4/15min']=${l[2]}))"
 )
 
 # CPU user, nice, system, idle, iowait, other
 
 (
-    regex='(\S*) *cpu +(\S+) (\S+) (\S+) (\S+) (\S+) (.+)'
-    src=$(date +%s)' '$(grep -E "$regex" /proc/stat 2>&1) ||
-        die "Can not get a CPU data: $src."
+    src=$(grep -E '^cpu ' /proc/stat | sed -r 's/^cpu +//')
 
-    [[ $src =~ $regex ]] || die "Can not match the CPU data: $src."
+    IFS=$' ' read -r -a l <<< "$src"
+    declare -A stat=(
+        ['time']=$(date +%s)
+        ['user']=${l[0]}
+        ['nice']=${l[1]}
+        ['system']=${l[2]}
+        ['idle']=${l[3]}
+        ['iowait']=${l[4]:-0}
+        ['irq']=${l[5]:-0}
+        ['softirq']=${l[6]:-0}
+        ['steal']=${l[7]:-0}
+        ['guest']=${l[8]:-0}
+        ['guest_nice']=${l[9]:-0})
 
-    src_time=${BASH_REMATCH[1]}
-    src_user=${BASH_REMATCH[2]}
-    src_nice=${BASH_REMATCH[3]}
-    src_system=${BASH_REMATCH[4]}
-    src_idle=${BASH_REMATCH[5]}
-    src_iowait=${BASH_REMATCH[6]}
-    src_other_list=${BASH_REMATCH[7]}
+    regex='declare -A cpu_stat='
 
-    snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+    snap_src=$(grep "$regex" $STAT_SYSTEM_FILE | sed 's/cpu_stat/snap/')
 
-    if [[ $snap =~ $regex ]]; then
-        snap_time=${BASH_REMATCH[1]}
-        snap_user=${BASH_REMATCH[2]}
-        snap_nice=${BASH_REMATCH[3]}
-        snap_system=${BASH_REMATCH[4]}
-        snap_idle=${BASH_REMATCH[5]}
-        snap_iowait=${BASH_REMATCH[6]}
-        snap_other_list=${BASH_REMATCH[7]}
+    if [[ -z "$snap_src" ]]; then
+        warn "$(declare -pA a=(
+            ['1/message']='No previous CPU stat record in the snapshot file'))"
+    else
+        eval "$snap_src"
 
-        src_other=0
-        for num in $src_other_list; do
-            src_other=$(( $src_other + $num))
-        done
+        user_int=$(( ${stat['user']} - ${snap['user']} ))
+        nice_int=$(( ${stat['nice']} - ${snap['nice']} ))
+        system_int=$(( ${stat['system']} - ${snap['system']} ))
+        idle_int=$(( ${stat['idle']} - ${snap['idle']} ))
+        iowait_int=$(( ${stat['iowait']} - ${snap['iowait']} ))
+        irq_int=$(( ${stat['irq']} - ${snap['irq']} ))
+        softirq_int=$(( ${stat['softirq']} - ${snap['softirq']} ))
+        steal_int=$(( ${stat['steal']} - ${snap['steal']} ))
+        guest_int=$(( ${stat['guest']} - ${snap['guest']} ))
+        guest_nice_int=$(( ${stat['guest_nice']} - ${snap['guest_nice']} ))
 
-        snap_other=0
-        for num in $snap_other_list; do
-            snap_other=$(( $snap_other + $num))
-        done
-
-        user_int=$(( $src_user - $snap_user ))
-        nice_int=$(( $src_nice - $snap_nice ))
-        system_int=$(( $src_system - $snap_system ))
-        idle_int=$(( $src_idle - $snap_idle ))
-        iowait_int=$(( $src_iowait - $snap_iowait ))
-        other_int=$(( $src_other - $snap_other ))
         total_int=$((
             $user_int + $nice_int + $system_int + $idle_int + $iowait_int +
-            $other_int
+            $irq_int + $softirq_int + $steal_int + $guest_int + $guest_nice_int
         ))
 
-        user=$(echo "scale=1; 100 * $user_int / $total_int" | \
-               bc | awk '{printf "%.1f", $0}')
-        nice=$(echo "scale=1; 100 * $nice_int / $total_int" | \
-               bc | awk '{printf "%.1f", $0}')
-        system=$(echo "scale=1; 100 * $system_int / $total_int" | \
-                 bc | awk '{printf "%.1f", $0}')
-        idle=$(echo "scale=1; 100 * $idle_int / $total_int" | \
-               bc | awk '{printf "%.1f", $0}')
-        iowait=$(echo "scale=1; 100 * $iowait_int / $total_int" | \
-                 bc | awk '{printf "%.1f", $0}')
-        other=$(echo "scale=1; 100 * $other_int / $total_int" | \
-                 bc | awk '{printf "%.1f", $0}')
+        user=$(echo "scale=2; 100 * $user_int / $total_int" | \
+               bc | awk '{printf "%.2f", $0}')
+        nice=$(echo "scale=2; 100 * $nice_int / $total_int" | \
+               bc | awk '{printf "%.2f", $0}')
+        system=$(echo "scale=2; 100 * $system_int / $total_int" | \
+                 bc | awk '{printf "%.2f", $0}')
+        idle=$(echo "scale=2; 100 * $idle_int / $total_int" | \
+               bc | awk '{printf "%.2f", $0}')
+        iowait=$(echo "scale=2; 100 * $iowait_int / $total_int" | \
+                 bc | awk '{printf "%.2f", $0}')
+        irq=$(echo "scale=2; 100 * $irq_int / $total_int" | \
+                 bc | awk '{printf "%.2f", $0}')
+        softirq=$(echo "scale=2; 100 * $softirq_int / $total_int" | \
+                 bc | awk '{printf "%.2f", $0}')
+        steal=$(echo "scale=2; 100 * $steal_int / $total_int" | \
+                 bc | awk '{printf "%.2f", $0}')
+        guest=$(echo "scale=2; 100 * $guest_int / $total_int" | \
+                 bc | awk '{printf "%.2f", $0}')
+        guest_nice=$(echo "scale=2; 100 * $guest_nice_int / $total_int" | \
+                 bc | awk '{printf "%.2f", $0}')
 
-        info "CPU usage, %: user $user, nice $nice, system $system," \
-             "idle $idle, iowait $iowait, other $other."
-    else
-        warn "No previous CPU record in the snapshot file."
+        info "$(declare -pA a=(
+                ['1/message']='CPU usage, %'
+                ['2/user']=$user
+                ['3/nice']=$nice
+                ['4/system']=$system
+                ['5/idle']=$idle
+                ['6/iowait']=$iowait
+                ['7/irq']=$irq
+                ['8/softirq']=$softirq
+                ['9/steal']=$steal
+                ['10/guest']=$guest
+                ['11/guest_nice']=$guest_nice))"
     fi
 
     error=$((
-        sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
-        echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
-        die "Can not save the CPU data snapshot: $error."
+        sed -i "/$regex/d" $STAT_SYSTEM_FILE &&
+            declare -p stat | sed "s/declare -A stat=/$regex/" \
+            >> $STAT_SYSTEM_FILE) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not save the CPU data snapshot'
+            ['2m/detail']=$error))"
 )
 
 # memory total, used, free, buffers, cached
+# swap total, used, free
 # See http://momjian.us/main/blogs/pgblog/2012.html#May_2_2012
 
 (
-    regex='MemTotal: (\S+) kB MemFree: (\S+) kB Buffers: (\S+) kB Cached: (\S+)'
     src=$(
-        echo $(grep -E '^(Mem(Total|Free)|Buffers|Cached):' /proc/meminfo) \
-        2>&1) ||
-        die "Can not get a memory data: $src."
+        grep -E '^(Mem(Total|Free)|Buffers|Cached|Swap(Total|Free)):' \
+            /proc/meminfo \
+            | sed -r 's/\s+/ /g' | cut -d ' ' -f 2 | paste -sd ' ')
 
-    [[ $src =~ $regex ]] || die "Can not match the memory data: $src."
+    IFS=$' ' read -r -a l <<< "$src"
+    info "$(declare -pA a=(
+        ['1/message']='Memory size, kB'
+        ['2/total']=${l[0]}
+        ['3/used']=$(( ${l[0]} - ${l[1]} - ${l[2]} - ${l[3]} ))
+        ['4/free']=${l[1]}
+        ['5/buffers']=${l[2]}
+        ['6/cached']=${l[3]}))"
 
-    total=${BASH_REMATCH[1]}
-    free=${BASH_REMATCH[2]}
-    buffers=${BASH_REMATCH[3]}
-    cached=${BASH_REMATCH[4]}
-
-    used=$(( ($total - $free - $buffers - $cached) ))
-
-    info "Memory size, kB: total $total, used $used, free $free," \
-         "buffers $buffers, cached $cached."
-)
-
-# swap total, used, free
-
-(
-    regex='SwapTotal: (\S+) kB SwapFree: (\S+)'
-    src=$(echo $(grep -E '^Swap(Total|Free):' /proc/meminfo) 2>&1) ||
-        die "Can not get a swap data: $src."
-
-    [[ $src =~ $regex ]] || die "Can not match the swap data: $src."
-
-    total=${BASH_REMATCH[1]}
-    free=${BASH_REMATCH[2]}
-
-    used=$(( $total - $free ))
-
-    info "Swap size, kB: total $total, used $used, free $free."
+    info "$(declare -pA a=(
+        ['1/message']='Swap size, kB'
+        ['2/total']=${l[4]}
+        ['3/used']=$(( ${l[4]} - ${l[5]} ))
+        ['4/free']=${l[5]}))"
 )
 
 # context switch count
 
 (
-    regex='(\S*) *ctxt (\S+)'
-    src=$(date +%s)' '$(grep -E "$regex" /proc/stat 2>&1) ||
-        die "Can not get a context switch data: $src."
+    src=$(grep -E "^ctxt " /proc/stat | cut -d ' ' -f 2)
 
-    [[ $src =~ $regex ]] ||
-        die "Can not match the context switch data: $src."
+    IFS=$' ' read -r -a l <<< "$src"
+    declare -A stat=(
+        ['time']=$(date +%s)
+        ['cswitch']=${l[0]})
 
-    src_time=${BASH_REMATCH[1]}
-    src_count=${BASH_REMATCH[2]}
+    regex='declare -A cswitch_stat='
 
-    snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+    snap_src=$(grep "$regex" $STAT_SYSTEM_FILE | sed 's/cswitch_stat/snap/')
 
-    if [[ $snap =~ $regex ]]
-    then
-        snap_time=${BASH_REMATCH[1]}
-        snap_count=${BASH_REMATCH[2]}
-
-        count_s=$(( ($src_count - $snap_count) / ($src_time - $snap_time) ))
-
-        info "Context switch, /s: count $count_s."
+    if [[ -z "$snap_src" ]]; then
+        warn "$(declare -pA a=(
+            ['1/message']='No previous context switch record in the snapshot file'))"
     else
-        warn "No previous context switch record in the snapshot file."
+        eval "$snap_src"
+
+        count_s=$((
+            (${stat['cswitch']} - ${snap['cswitch']}) /
+            (${stat['time']} - ${snap['time']}) ))
+
+        info "$(declare -pA a=(
+                ['1/message']='Context switch, /s'
+                ['2/value']=$count_s))"
     fi
 
     error=$((
-        sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
-        echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
-        die "Can not save the context switch snapshot: $error."
+        sed -i "/$regex/d" $STAT_SYSTEM_FILE &&
+            declare -p stat | sed "s/declare -A stat=/$regex/" \
+            >> $STAT_SYSTEM_FILE) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not save the context switch data snapshot'
+            ['2m/detail']=$error))"
 )
 
 # pages in, out
-
-(
-    regex='(\S*) *pgpgin (\S+) pgpgout (\S+)'
-    src=$(date +%s)' '$(echo $(grep -E '^pgpg(in|out) ' /proc/vmstat) 2>&1) ||
-        die "Can not get a pages data: $src."
-
-    [[ $src =~ $regex ]] || die "Can not match the pages data: $src."
-
-    src_time=${BASH_REMATCH[1]}
-    src_in=${BASH_REMATCH[2]}
-    src_out=${BASH_REMATCH[3]}
-
-    snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
-
-    if [[ $snap =~ $regex ]]
-    then
-        snap_time=${BASH_REMATCH[1]}
-        snap_in=${BASH_REMATCH[2]}
-        snap_out=${BASH_REMATCH[3]}
-
-        interval=$(( $src_time - $snap_time ))
-
-        in_s=$(( ($src_in - $snap_in) / $interval ))
-        out_s=$(( ($src_out - $snap_out) / $interval ))
-
-        info "Pages count, /s: in $in_s, out $out_s."
-    else
-        warn "No previous pages record in the snapshot file."
-    fi
-
-    error=$((
-        sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
-        echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
-        die "Can not save the paging snapshot: $error."
-)
-
 # swap pages in, out
 
 (
-    regex='(\S*) *pswpin (\S+) pswpout (\S+)'
-    src=$(date +%s)' '$(echo $(grep -E '^pswp(in|out) ' /proc/vmstat) 2>&1) ||
-        die "Can not get a swap pages data: $src."
+    src=$(
+        grep -E "^(pgpg|pswp)(in|out) " /proc/vmstat | cut -d ' ' -f 2 \
+            | paste -sd ' ')
 
-    [[ $src =~ $src_regex ]] || die "Can not match the swap pages data: $src."
+    IFS=$' ' read -r -a l <<< "$src"
+    declare -A stat=(
+        ['time']=$(date +%s)
+        ['in']=${l[0]}
+        ['out']=${l[1]}
+        ['swap_in']=${l[2]}
+        ['swap_out']=${l[3]})
 
-    src_time=${BASH_REMATCH[1]}
-    src_in=${BASH_REMATCH[2]}
-    src_out=${BASH_REMATCH[3]}
+    regex='declare -A pages_stat='
 
-    snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+    snap_src=$(grep "$regex" $STAT_SYSTEM_FILE | sed 's/pages_stat/snap/')
 
-    if [[ $snap =~ $regex ]]
-    then
-        snap_time=${BASH_REMATCH[1]}
-        snap_in=${BASH_REMATCH[2]}
-        snap_out=${BASH_REMATCH[3]}
-
-        interval=$(( $src_time - $snap_time ))
-
-        in_s=$(( ($src_in - $snap_in) / $interval ))
-        out_s=$(( ($src_out - $snap_out) / $interval ))
-
-        info "Swap pages count, /s: in $in_s, out $out_s."
+    if [[ -z "$snap_src" ]]; then
+        warn "$(declare -pA a=(
+            ['1/message']='No previous paging record in the snapshot file'))"
     else
-        warn "No previous swap pages record in the snapshot file."
+        eval "$snap_src"
+
+        interval=$(( ${stat['time']} - ${snap['time']} ))
+
+        in_s=$(( (${stat['in']} - ${snap['in']}) / $interval ))
+        out_s=$(( (${stat['out']} - ${snap['out']}) / $interval ))
+        swap_in_s=$(( (${stat['swap_in']} - ${snap['swap_in']}) / $interval ))
+        swap_out_s=$((
+            (${stat['swap_out']} - ${snap['swap_out']}) / $interval ))
+
+        info "$(declare -pA a=(
+                ['1/message']='Page count, /s'
+                ['2/in']=$in_s
+                ['3/out']=$out_s))"
+
+        info "$(declare -pA a=(
+                ['1/message']='Swap page count, /s'
+                ['2/in']=$swap_in_s
+                ['3/out']=$swap_out_s))"
     fi
 
     error=$((
-        sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
-        echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
-        die "Can not save the swap pages snapshot: $error."
+        sed -i "/$regex/d" $STAT_SYSTEM_FILE &&
+            declare -p stat | sed "s/declare -A stat=/$regex/" \
+            >> $STAT_SYSTEM_FILE) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not save the paging data snapshot'
+            ['2m/detail']=$error))"
 )
 
 # Processing partition stats
 
-part_list=$((ls -l /dev/disk/by-uuid/* | sed 's/.*\///' | sort) 2>&1) ||
-    die "Can not get a parition list for disk data: $part_list."
+part_list=$(ls -l /dev/disk/by-uuid/* | sed 's/.*\///' | sort)
 
 for part in $part_list; do
     # disk IO count read, write
@@ -265,111 +247,129 @@ for part in $part_list; do
     # https://www.kernel.org/doc/Documentation/block/stat.txt
 
     (
-        regex="(\S*) *\S+ \S+ $part (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) \S+ (\S+) (\S+)$"
-        src=$(grep -E " $part " /proc/diskstats 2>&1) ||
-            die "Can not get a disk data for $part: $src."
-        src=$(date +%s)' '$(echo $src | sed -r 's/\s+/ /g' | sed -r 's/^ //g')
+        src=$(
+            grep -E " $part " /proc/diskstats | sed -r 's/\s+/ /g' \
+                | sed -r 's/^\s//g')
 
-        [[ $src =~ $regex ]] ||
-            die "Can not match the disk data for $part: $src."
+        IFS=$' ' read -r -a l <<< "$src"
+        declare -A stat=(
+            ['time']=$(date +%s)
+            ['read']=${l[3]}
+            ['read_merged']=${l[4]}
+            ['read_sectors']=${l[5]}
+            ['read_ms']=${l[6]}
+            ['write']=${l[7]}
+            ['write_merged']=${l[8]}
+            ['write_sectors']=${l[9]}
+            ['write_ms']=${l[10]}
+            ['io_ms']=${l[12]}
+            ['w_io_ms']=${l[13]})
 
-        src_time=${BASH_REMATCH[1]}
-        src_read=${BASH_REMATCH[2]}
-        src_read_merged=${BASH_REMATCH[3]}
-        src_read_sectors=${BASH_REMATCH[4]}
-        src_read_ms=${BASH_REMATCH[5]}
-        src_write=${BASH_REMATCH[6]}
-        src_write_merged=${BASH_REMATCH[7]}
-        src_write_sectors=${BASH_REMATCH[8]}
-        src_write_ms=${BASH_REMATCH[9]}
-        src_io_ms=${BASH_REMATCH[10]}
-        src_w_io_ms=${BASH_REMATCH[11]}
+        regex="declare -A diskio_${part}_stat="
 
-        snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+        snap_src=$(
+            grep "$regex" $STAT_SYSTEM_FILE | sed "s/diskio_${part}_stat/snap/")
 
-        if [[ $snap =~ $regex ]]; then
-            snap_time=${BASH_REMATCH[1]}
-            snap_read=${BASH_REMATCH[2]}
-            snap_read_merged=${BASH_REMATCH[3]}
-            snap_read_sectors=${BASH_REMATCH[4]}
-            snap_read_ms=${BASH_REMATCH[5]}
-            snap_write=${BASH_REMATCH[6]}
-            snap_write_merged=${BASH_REMATCH[7]}
-            snap_write_sectors=${BASH_REMATCH[8]}
-            snap_write_ms=${BASH_REMATCH[9]}
-            snap_io_ms=${BASH_REMATCH[10]}
-            snap_w_io_ms=${BASH_REMATCH[11]}
-
-            interval=$(( $src_time - $snap_time ))
-
-            read_s=$(( ($src_read - $snap_read) / $interval ))
-            read_merged_s=$((
-                ($src_read_merged - $snap_read_merged) / $interval ))
-            read_sectors_s=$((
-                ($src_read_sectors - $snap_read_sectors) / $interval / 2 ))
-            read_ms_s=$(( ($src_read_ms - $snap_read_ms) / $interval ))
-            write_s=$(( ($src_write - $snap_write) / $interval ))
-            write_merged_s=$((
-                ($src_write_merged - $snap_write_merged) / $interval ))
-            write_sectors_s=$((
-                ($src_write_sectors - $snap_write_sectors) / $interval / 2))
-            write_ms_s=$(( ($src_write_ms - $snap_write_ms) / $interval ))
-            io_ms_s=$(( ($src_io_ms - $snap_io_ms) / $interval ))
-            w_io_ms_s=$(( ($src_w_io_ms - $snap_w_io_ms) / $interval ))
-
-            info "Disk IO count for $part, /s:" \
-                 "read $read_s, read merged $read_merged_s," \
-                 "write $write_s, write merged $write_merged_s."
-            info "Disk IO size for $part, kB/s:" \
-                 "read $read_sectors_s, write $write_sectors_s."
-            info "Disk IO ticks for $part, ms/s:" \
-                 "read $read_ms_s, write $write_ms_s."
-            info "Disk IO queue for $part, ms/s:" \
-                 "active $io_ms_s, weighted $w_io_ms_s."
+        if [[ -z "$snap_src" ]]; then
+            warn "$(declare -pA a=(
+                ['1/message']='No previous disk IO record in the snapshot file'
+                ['2/partition']=$part))"
         else
-            warn "No previous disk record for $part in the snapshot file."
+            eval "$snap_src"
+
+            interval=$(( ${stat['time']} - ${snap['time']} ))
+
+            read_s=$(( (${stat['read']} - ${snap['read']}) / $interval ))
+            read_merged_s=$((
+                (${stat['read_merged']} - ${snap['read_merged']}) / $interval ))
+            read_sectors_s=$((
+                (${stat['read_sectors']} - ${snap['read_sectors']}) /
+                $interval / 2 ))
+            read_ms_s=$((
+                (${stat['read_ms']} - ${snap['read_ms']}) / $interval ))
+            write_s=$(( (${stat['write']} - ${snap['write']}) / $interval ))
+            write_merged_s=$((
+                (${stat['write_merged']} - ${snap['write_merged']}) /
+                $interval ))
+            write_sectors_s=$((
+                (${stat['write_sectors']} - ${snap['write_sectors']}) /
+                $interval / 2))
+            write_ms_s=$((
+                (${stat['write_ms']} - ${snap['write_ms']}) / $interval ))
+            io_ms_s=$(( (${stat['io_ms']} - ${snap['io_ms']}) / $interval ))
+            w_io_ms_s=$((
+                (${stat['w_io_ms']} - ${snap['w_io_ms']}) / $interval ))
+
+            info "$(declare -pA a=(
+                    ['1/message']='Disk IO count, /s'
+                    ['2/partition']=$part
+                    ['3/read']=$read_s
+                    ['4/read_merged']=$read_merged_s
+                    ['5/write']=$write_s
+                    ['6/write_merged']=$write_merged_s))"
+
+            info "$(declare -pA a=(
+                    ['1/message']='Disk IO size, kB/s'
+                    ['2/partition']=$part
+                    ['3/read']=$read_sectors_s
+                    ['4/write']=$write_sectors_s))"
+
+            info "$(declare -pA a=(
+                    ['1/message']='Disk IO ticks, ms/s'
+                    ['2/partition']=$part
+                    ['3/read']=$read_ms_s
+                    ['4/write']=$write_ms_s))"
+
+            info "$(declare -pA a=(
+                    ['1/message']='Disk IO queue, ms/s'
+                    ['2/partition']=$part
+                    ['3/active']=$io_ms_s
+                    ['4/weighted']=$w_io_ms_s))"
         fi
 
         error=$((
-            sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
-            echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
-            die "Can not save the disk snapshot for $part: $error."
+            sed -i "/$regex/d" $STAT_SYSTEM_FILE &&
+                declare -p stat | sed "s/declare -A stat=/$regex/" \
+                >> $STAT_SYSTEM_FILE) 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not save the disk IO data snapshot'
+                ['2/partition']=$part
+                ['3m/detail']=$error))"
     )
 
     # disk space
 
-    if [ -z $(grep $part /proc/swaps | cut -d ' ' -f 1) ]; then
+    if [[ -z "$(grep $part /proc/swaps | cut -d ' ' -f 1)" ]]; then
         (
-            regex="$part (\S+) (\S+) (\S+) (\S+)% (\S+)$"
             src=$(
-                df 2>/dev/null | sed -r 's/\s+/ /g' | grep -E "$part " | \
-                xargs -l bash -c "$( \
-                    echo 'echo $(ls -l $0 | sed -r 's/.* //' 2>/dev/null ||' \
-                         'echo $0) $1 $2 $3 $4 $5 $6')")
+                df 2>/dev/null | sed -r 's/\s+/ /g' | grep -E "$part " \
+                    | xargs -l bash -c "$( \
+                        echo 'echo $(ls -l $0 | sed -r 's/.* //' 2>/dev/null ' \
+                        '|| echo $0) $1 $2 $3 $4 $5 $6')")
 
-            [[ $src =~ $regex ]] ||
-                die "Can not match the disk space data for $part: $src."
+           IFS=$' ' read -r -a l <<< "$src"
+            info "$(declare -pA a=(
+                ['1/message']='Disk space, kB'
+                ['2/partition']=$part
+                ['3/path']="${l[5]}"
+                ['4/total']=${l[1]}
+                ['5/used']=${l[2]}
+                ['6/available']=${l[3]}))"
 
-            src_total=${BASH_REMATCH[1]}
-            src_used=${BASH_REMATCH[2]}
-            src_available=${BASH_REMATCH[3]}
-            src_percent=${BASH_REMATCH[4]}
-            src_path=${BASH_REMATCH[5]}
-
-            info "Disk space for $part $src_path, kB:" \
-                 "total $src_total, used $src_used, available $src_available."
-            info "Disk space usage for $part $src_path, %:" \
-                 "percent $src_percent."
+            info "$(declare -pA a=(
+                ['1/message']='Disk space usage, %'
+                ['2/partition']=$part
+                ['3/path']="${l[5]}"
+                ['4/percent']=$(echo ${l[4]} | sed 's/%//')))"
         )
     fi
 done
 
 # Processing network interface stats
 
-iface_list=$(echo $(
-    cat /proc/net/dev | sed -r 's/\s+/ /g' | sed -r 's/^ //g' | \
-    grep -E ' *\S+: ' | cut -d ' ' -f 1 | sed 's/://' ) 2>&1) ||
-    die "Can not get a network interface list: $iface_list."
+iface_list=$(
+    cat /proc/net/dev | sed -r 's/\s+/ /g' | sed -r 's/^ //g' \
+        | grep -E ' *\S+: ' | cut -d ' ' -f 1 | sed 's/://')
 
 # network bytes sent and received
 # network packets sent and received
@@ -377,96 +377,134 @@ iface_list=$(echo $(
 
 for iface in $iface_list; do
     (
-        regex="(\S*) *$iface: (\S+) (\S+) (\S+) \S+ \S+ \S+ \S+ \S+ (\S+) (\S+) (\S+)"
-        src=$(grep "$iface: " /proc/net/dev 2>&1) ||
-            die "Can not get a network data for $iface: $src."
-        src=$(date +%s)' '$(echo $src | sed -r 's/\s+/ /g' | sed -r 's/^ //g')
+        src=$(
+            grep "$iface: " /proc/net/dev | sed -r 's/\s+/ /g' \
+                | sed -r 's/^\s//g')
 
-        [[ $src =~ $regex ]] || die "Can not match the network data for $iface."
+        IFS=$' ' read -r -a l <<< "$src"
+        declare -A stat=(
+            ['time']=$(date +%s)
+            ['bytes_received']=${l[1]}
+            ['packets_received']=${l[2]}
+            ['errors_received']=${l[3]}
+            ['bytes_sent']=${l[9]}
+            ['packets_sent']=${l[10]}
+            ['errors_sent']=${l[11]})
 
-        src_time=${BASH_REMATCH[1]}
-        src_bytes_received=${BASH_REMATCH[2]}
-        src_packets_received=${BASH_REMATCH[3]}
-        src_errors_received=${BASH_REMATCH[4]}
-        src_bytes_sent=${BASH_REMATCH[5]}
-        src_packets_sent=${BASH_REMATCH[6]}
-        src_errors_sent=${BASH_REMATCH[7]}
+        regex="declare -A network_${iface}_stat="
 
-        snap=$(grep -E "$regex" $STAT_SYSTEM_FILE)
+        snap_src=$(
+            grep "$regex" $STAT_SYSTEM_FILE \
+                | sed "s/network_${iface}_stat/snap/")
 
-        if [[ $snap =~ $regex ]]; then
-            snap_time=${BASH_REMATCH[1]}
-            snap_bytes_received=${BASH_REMATCH[2]}
-            snap_packets_received=${BASH_REMATCH[3]}
-            snap_errors_received=${BASH_REMATCH[4]}
-            snap_bytes_sent=${BASH_REMATCH[5]}
-            snap_packets_sent=${BASH_REMATCH[6]}
-            snap_errors_sent=${BASH_REMATCH[7]}
+        if [[ -z "$snap_src" ]]; then
+            warn "$(declare -pA a=(
+                ['1/message']='No previous network record in the snapshot file'
+                ['2/iface']=$iface))"
+        else
+            eval "$snap_src"
 
-            interval=$(( $src_time - $snap_time ))
+            interval=$(( ${stat['time']} - ${snap['time']} ))
 
             bytes_received_s=$((
-                ($src_bytes_received - $snap_bytes_received) / $interval ))
+                (${stat['bytes_received']} - ${snap['bytes_received']}) /
+                $interval ))
             packets_received_s=$((
-                ($src_packets_received - $snap_packets_received) / $interval ))
+                (${stat['packets_received']} - ${snap['packets_received']}) /
+                $interval ))
             errors_received_s=$((
-                ($src_errors_received - $snap_errors_received) / $interval ))
+                (${stat['errors_received']} - ${snap['errors_received']}) /
+                $interval ))
             bytes_sent_s=$((
-                ($src_bytes_sent - $snap_bytes_sent) / $interval ))
+                (${stat['bytes_sent']} - ${snap['bytes_sent']}) / $interval ))
             packets_sent_s=$((
-                ($src_packets_sent - $snap_packets_sent) / $interval ))
+                (${stat['packets_sent']} - ${snap['packets_sent']}) /
+                $interval ))
             errors_sent_s=$((
-                ($src_errors_sent - $snap_errors_sent) / $interval ))
+                (${stat['errors_sent']} - ${snap['errors_sent']}) / $interval ))
 
-            info "Network bytes for $iface, B/s:" \
-                 "received $bytes_received_s, sent $bytes_sent_s."
-            info "Network packets for $iface, /s:" \
-                 "received $packets_received_s, sent $packets_sent_s."
-            info "Network errors for $iface, /s:" \
-                 "received $errors_received_s, sent $errors_sent_s."
-        else
-            warn "No previous network record for $iface in the snapshot file."
+            info "$(declare -pA a=(
+                    ['1/message']='Network bytes, B/s'
+                    ['2/iface']=$iface
+                    ['3/received']=$bytes_received_s
+                    ['4/sent']=$bytes_sent_s))"
+
+            info "$(declare -pA a=(
+                    ['1/message']='Network packets, /s'
+                    ['2/iface']=$iface
+                    ['3/received']=$packets_received_s
+                    ['4/sent']=$packets_sent_s))"
+
+            info "$(declare -pA a=(
+                    ['1/message']='Network errors, /s'
+                    ['2/iface']=$iface
+                    ['3/received']=$errors_received_s
+                    ['4/sent']=$errors_sent_s))"
         fi
 
         error=$((
-            sed -i -r "/$regex/d" $STAT_SYSTEM_FILE && \
-            echo "$src" >> $STAT_SYSTEM_FILE) 2>&1) ||
-            die "Can not save the network snapshot for $iface: $error."
+            sed -i "/$regex/d" $STAT_SYSTEM_FILE &&
+                declare -p stat | sed "s/declare -A stat=/$regex/" \
+                >> $STAT_SYSTEM_FILE) 2>&1) ||
+            die "$(declare -pA a=(
+                ['1/message']='Can not save the network data snapshot'
+                ['2/iface']=$part
+                ['3m/detail']=$error))"
     )
 done
 
 # top programs by CPU
 
-list=$(
+src=$(
     ps -eo comm,pcpu --no-headers \
-    | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
-    | sort -k 2n | tail -n 5 | paste -sd ',' | sed 's/,/, /g')
+        | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
+        | sort -k 2nr | head -n 5)
 
-info "Top programs by CPU, %: $list."
+while IFS=$' ' read -r -a l; do
+    info "$(declare -pA a=(
+        ['1/message']='Top programs by CPU, %'
+        ['2/name']=${l[0]}
+        ['3/value']=${l[1]}))"
+done <<< "$src"
 
 # top programs by RSS
 
-list=$(
+src=$(
     ps -eo comm,pmem --no-headers \
-    | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
-    | sort -k 2n | tail -n 5 | paste -sd ',' | sed 's/,/, /g')
+        | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
+        | sort -k 2nr | head -n 5)
 
-info "Top programs by RSS, %: $list."
+while IFS=$' ' read -r -a l; do
+    info "$(declare -pA a=(
+        ['1/message']='Top programs by RSS, %'
+        ['2/name']=${l[0]}
+        ['3/value']=${l[1]}))"
+done <<< "$src"
 
 # top programs by precesse count
 
-list=$(
+src=$(
     ps -eo comm --no-headers | sort | uniq -c \
-    | awk '{ arr[$2] += $1 } END { for (i in arr) { print i, arr[i] } }' \
-    | sort -k 2n | tail -n 5 | paste -sd ',' | sed 's/,/, /g')
+        | awk '{ arr[$2] += $1 } END { for (i in arr) { print i, arr[i] } }' \
+        | sort -k 2nr | head -n 5)
 
-info "Top programs by process count: $list."
+while IFS=$' ' read -r -a l; do
+    info "$(declare -pA a=(
+        ['1/message']='Top programs by process count'
+        ['2/name']=${l[0]}
+        ['3/value']=${l[1]}))"
+done <<< "$src"
 
 # top programs by thread count
 
-list=$(
+src=$(
     ps -eo comm,nlwp --no-headers \
-    | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
-    | sort -k 2n | tail -n 5 | paste -sd ',' | sed 's/,/, /g')
+        | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
+        | sort -k 2nr | head -n 5)
 
-info "Top programs by thread count: $list."
+while IFS=$' ' read -r -a l; do
+    info "$(declare -pA a=(
+        ['1/message']='Top programs by thread count'
+        ['2/name']=${l[0]}
+        ['3/value']=${l[1]}))"
+done <<< "$src"
