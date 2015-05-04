@@ -178,19 +178,19 @@ BEGIN
                 (
                     sum(rows)::numeric / sum(calls)
                 )::numeric(18,3) AS rows_avg,
-                array_to_string(
+                nullif(array_to_string(
                     array(
                         SELECT DISTINCT unnest(
                             string_to_array(string_agg(users, ' '), ' '))
                     ), ', '
-                )::text AS users,
-                array_to_string(
+                )::text, '') AS users,
+                nullif(array_to_string(
                     array(
                         SELECT DISTINCT unnest(
                             string_to_array(string_agg(dbs, ' '), ' '))
                     ), ', '
-                )::text AS dbs,
-                query::text
+                )::text, '') AS dbs,
+                nullif(query, '')::text
             FROM q2
             GROUP by query, row_number
             ORDER BY row_number);
@@ -313,6 +313,6 @@ EOF
             ['13/rows_avg']=${l[11]}
             ['14/users']=${l[12]}
             ['15/dbs']=${l[13]}
-            ['16m/query']=$(echo -e "${l[14]}")))"
+            ['16m/query']=${l[14]}))"
     done <<< "$src"
 fi
