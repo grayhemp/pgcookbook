@@ -164,21 +164,32 @@ dsn=$(
 )
 
 # max database/user pool utilization
+# per database/user pool utilization
 
 (
-    result=$(
-        join -t '|' -o '2.1 2.2 2.3 1.2' \
-            <($PSQL -XAtc 'SHOW DATABASES' pgbouncer \
-              | cut -d '|' -f 4,6 | sort) \
-            <($PSQL -XAtc 'SHOW POOLS' pgbouncer \
-              | cut -d '|' -f 1,2,3 | sort) 2>&1) || \
+    dbs_src=$($PSQL -XAtc "SHOW DATABASES" pgbouncer 2>&1) ||
         die "$(declare -pA a=(
-            ['1/message']='Can not get a pool utilization data'
+            ['1/message']='Can not get a databases utilization data'
             ['2/dsn']=$dsn
-            ['3m/detail']=$result))"
+            ['3m/detail']=$dbs_src))"
+
+    pools_src=$($PSQL -XAtc "SHOW POOLS" pgbouncer 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a pools utilization data'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$pools_src))"
+
+    dbs_pools_src=$(
+        join -t '|' -o '2.1 2.2 2.3 1.2' \
+            <(echo "$dbs_src" | cut -d '|' -f 4,6 | sort) \
+            <(echo "$pools_src" | cut -d '|' -f 1,2,3 | sort) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a databses/pools utilization data'
+            ['2/dsn']=$dsn
+            ['3m/detail']=$dbs_pools_src))"
 
     result=$(
-        echo "$result" | grep -v 'pgbouncer|pgbouncer' \
+        echo "$dbs_pools_src" \
         | sed -r 's/([^|]+?\|){2}/scale=2; 100 * /' | sed 's/|/\//' | bc \
         | sort -nr | head -n 1 | awk '{printf "%.2f", $0}')
 
@@ -188,24 +199,9 @@ dsn=$(
         ['1/message']='Max databse/user pool utilization, %'
         ['2/dsn']=$dsn
         ['3/value']=$result))"
-)
-
-# per database/user pool utilization
-
-(
-    result=$(
-        join -t '|' -o '2.1 2.2 2.3 1.2' \
-            <($PSQL -XAtc 'SHOW DATABASES' pgbouncer \
-              | cut -d '|' -f 4,6 | sort) \
-            <($PSQL -XAtc 'SHOW POOLS' pgbouncer \
-              | cut -d '|' -f 1,2,3 | sort) 2>&1) ||
-        die "$(declare -pA a=(
-            ['1/message']='Can not get a pool utilization data'
-            ['2/dsn']=$dsn
-            ['3m/detail']=$result))"
 
     row_list=$(
-        echo "$result" | grep -v 'pgbouncer|pgbouncer' \
+        echo "$dbs_pools_src" \
             | sed -r 's/(.+)([0-9]+)\|([0-9]+)/scale=2; print "\1", 100 * \2\/\3, "\n"/' \
             | bc | sort -k 3nr -t '|' | head -n 5)
 
@@ -253,7 +249,7 @@ dsn=$(
         | awk '{printf "%.2f", $0}')
 
     info "$(declare -pA a=(
-        ['1/message']='Client pool utilization'
+        ['1/message']='Client pool utilization, %'
         ['2/dsn']=$dsn
         ['3/value']=$result))"
 )
