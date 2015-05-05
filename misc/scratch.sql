@@ -117,7 +117,7 @@ git -C /tmp/_repo init --bare
 git clone /tmp/_repo /mnt/archive/repo
 touch /mnt/archive/repo/file
 git -C /mnt/archive/repo add .
-git -C /mnt/archive/repo ci -m 'Initial commit.'
+git -C /mnt/archive/repo commit -m 'Initial commit.'
 git -C /mnt/archive/repo push origin master
 ssh-keygen -t rsa -f /tmp/_repo_id_rsa
 
