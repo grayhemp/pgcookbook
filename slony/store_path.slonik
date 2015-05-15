@@ -1,4 +1,4 @@
 include <config_cluster.slonik>;
 
-store path (server = @master, client = @slave1, conninfo = @conninfo1);
-store path (server = @slave1, client = @master, conninfo = @conninfo2);
+store path (server = @origin, client = @replica1, conninfo = @conninfo1);
+store path (server = @replica1, client = @origin, conninfo = @conninfo2);

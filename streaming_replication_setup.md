@@ -10,7 +10,7 @@ port 5432. We need to setup a streaming replication from `host1`
 Before starting preparations of the database servers, check the
 bandwidth between them. It must be enough to transmit your WAL
 stream. If the situation is not very good it is recommended to forward
-the port from master to replica using [SSH-tunneling with
+the port from origin to replica using [SSH-tunneling with
 compression](ssh_tunnel_with_compression_setup.md). In the future
 versions of PostgreSQL the compression will probably be built-in.
 
@@ -88,12 +88,12 @@ configuration like shown below in it.
 By this we turned standby mode on, specified a connection string to
 point to the primary server, and specified a path to the trigger file
 which presence will be a signal for PostgreSQL to finish the recovery
-and to promote the replica to a master. In case of the ssh-tunneling
+and to promote the replica to a origin. In case of the ssh-tunneling
 specify the host as `127.0.0.1` and the port as `2345`.
 
 Note, if you are planning to run long queries on the standby and it is
 possible that the data they use can be changed during their execution
-on the master then they can be canceled automatically with errors like
+on the origin then they can be canceled automatically with errors like
 below.
 
     ERROR:  canceling statement due to conflict with recovery
@@ -109,7 +109,7 @@ recovery before such queries are canceled.
     max_standby_streaming_delay = 5min
 
 Also, to avoid query cancels caused by VACUUM's record cleanup on
-master, let us make our replica to send a feedback about currently
+origin, let us make our replica to send a feedback about currently
 executing queries. It is available for versions `>=9.1`.
 
     hot_standby_feedback = on
@@ -124,7 +124,7 @@ Do not forget to stop the standby server.
 
 Also note, that the mount points of the tablespaces on the standby
 must be the same as on the primary server. To check it run `\db+` in
-psql on the master.
+psql on the origin.
 
 Okay, it is time to do a base backup. We have two ways of doing it
 depending on the version installed.
@@ -196,7 +196,7 @@ replica.
     2011-04-05 11:10:21 MSD @ 69969 [4d9ac05c.11151-1]:LOG:  database system is ready to accept read only connections
     2011-04-05 11:10:21 MSD @ 69974 [4d9ac05d.11156-1]:LOG:  streaming replication successfully connected to primary
 
-And this will appear in the master logs.
+And this will appear in the origin logs.
 
     2011-04-05 11:10:21 MSD [unknown]@[unknown] 57305 [4d9ac05d.dfd9-1]:LOG:  connection received: host=192.168.0.2 port=10562
     2011-04-05 11:10:21 MSD replica@[unknown] 57305 [4d9ac05d.dfd9-2]:LOG:  replication connection authorized: user=replica host=192.168.0.2 port=10562
