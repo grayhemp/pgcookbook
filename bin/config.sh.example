@@ -44,15 +44,53 @@ SSHADD='/usr/bin/ssh-add'
 SSHAGENT='/usr/bin/ssh-agent'
 GIT='/usr/bin/git'
 
-# ssh_tunnel.sh
+# archive_tables.sh
 
-TUNNEL_PORT=${TUNNEL_PORT:-2345}
-TUNNEL_HOST_PORT=${TUNNEL_HOST_PORT:-5432}
-TUNNEL_HOST=${TUNNEL_HOST:-'host2'}
-TUNNEL_COMP_LEVEL=2
-TUNNEL_RETRY_DELAY=60
-TUNNEL_LOCK=${TUNNEL_LOCK:-"$TUNNEL_PORT-$TUNNEL_HOST_PORT-$TUNNEL_HOST"}
-TUNNEL_LOCK_FILE=${TUNNEL_LOCK_FILE:-"/tmp/ssh_tunnel.$TUNNEL_LOCK"}
+ARCHIVE_DRY_RUN=${ARCHIVE_DRY_RUN:-false}
+ARCHIVE_DBNAME_LIST='dbname1 dbname2'
+ARCHIVE_LOCAL_DIR=
+ARCHIVE_ARCHIVE_DIR='/mnt/archive/parts'
+ARCHIVE_PARTS_SQL=$(cat <<EOF
+    SELECT schemaname, tablename
+    FROM pg_tables
+    WHERE
+        tablename ~ E'(table1|table2)_\\\\d{4}\\\\d{2}$' AND
+        to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
+            date_trunc('month', now()) - '1 year'::interval
+    UNION
+    SELECT schemaname, tablename
+    FROM pg_tables
+    WHERE
+        tablename ~ E'(table3|table4)_\\\\d{4}\\\\d{2}$' AND
+        to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
+            date_trunc('month', now()) - '2 years'::interval
+EOF
+)
+function ARCHIVE_COMMAND_BEFORE_DROP() {
+    # /usr/bin/londiste /etc/skytools/londiste-host2-$1.ini provider remove $2
+    echo
+}
+function ARCHIVE_COMMAND_AFTER_DROP() {
+    # $PSQL -h host2 $1 -c "DROP TABLE $2"
+    echo
+}
+
+# commit_schema.sh
+
+SCHEMA_DBNAME_LIST='dbname1 dbname2'
+SCHEMA_DIR='/mnt/archive/repo'
+SCHEMA_EXCLUDE_SCHEMA_SQL=$(cat <<EOF
+SELECT nspname FROM pg_namespace
+WHERE nspname ~ '^(pgq.*|londiste)$'
+EOF
+)
+SCHEMA_EXCLUDE_TABLE_SQL=$(cat <<EOF
+SELECT schemaname, tablename FROM pg_tables
+WHERE schemaname = 'partitions'
+EOF
+)
+SCHEMA_SSH_KEY=${SCHEMA_SSH_KEY:-}
+SCHEMA_ACTION=${SCHEMA_ACTION:-}
 
 # manage_dumps.sh
 
@@ -62,6 +100,34 @@ DUMPS_ARCHIVE_DIR='/mnt/archive/dumps'
 DUMPS_KEEP_DAILY_PARTS='3 days'
 DUMPS_KEEP_WEEKLY_PARTS='1 month'
 DUMPS_KEEP_MONTHLY_PARTS='1 year'
+
+# manage_pitr.sh
+
+PITR_WAL=${PITR_WAL:-false}
+PITR_LOCAL_DIR=
+PITR_ARCHIVE_DIR='/mnt/archive/basebackups'
+PITR_WAL_ARCHIVE_DIR='/mnt/archive/wal'
+PITR_WAL_RECEIVER_LOCK_FILE=${PITR_WAL_RECEIVER_LOCK_FILE:-$(
+    echo '/tmp/wal_receiver.'$(
+        echo $PITR_WAL_ARCHIVE_DIR | sed 's/\//_/g'
+    )"-$HOST-$PORT-$USER")}
+PITR_KEEP_BACKUPS=2
+
+# process_until_0.sh
+
+PROCESS_DBNAME=${PROCESS_DBNAME:-}
+
+# refresh_matviews.sh
+
+MATVIEWS_DBNAME_LIST='dbname1 dbname2'
+
+# replica_lag.sh
+
+LAG_DBNAME='dbname1'
+LAG_DSN=${LAG_DSN:-}
+LAG_RECEIVE=$((32 * 1024 * 1024))
+LAG_REPLAY=$((32 * 1024 * 1024))
+LAG_REPLAY_AGE='5 minutes'
 
 # restore_dump.sh
 
@@ -96,36 +162,23 @@ RESTORE_PRESERVE_SQL=$(cat <<EOF
 EOF
 )
 
-# archive_tables.sh
+# ssh_tunnel.sh
 
-ARCHIVE_DRY_RUN=${ARCHIVE_DRY_RUN:-false}
-ARCHIVE_DBNAME_LIST='dbname1 dbname2'
-ARCHIVE_LOCAL_DIR=
-ARCHIVE_ARCHIVE_DIR='/mnt/archive/parts'
-ARCHIVE_PARTS_SQL=$(cat <<EOF
-    SELECT schemaname, tablename
-    FROM pg_tables
-    WHERE
-        tablename ~ E'(table1|table2)_\\\\d{4}\\\\d{2}$' AND
-        to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
-            date_trunc('month', now()) - '1 year'::interval
-    UNION
-    SELECT schemaname, tablename
-    FROM pg_tables
-    WHERE
-        tablename ~ E'(table3|table4)_\\\\d{4}\\\\d{2}$' AND
-        to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
-            date_trunc('month', now()) - '2 years'::interval
-EOF
-)
-function ARCHIVE_COMMAND_BEFORE_DROP() {
-    # /usr/bin/londiste /etc/skytools/londiste-host2-$1.ini provider remove $2
-    echo
-}
-function ARCHIVE_COMMAND_AFTER_DROP() {
-    # $PSQL -h host2 $1 -c "DROP TABLE $2"
-    echo
-}
+TUNNEL_PORT=${TUNNEL_PORT:-2345}
+TUNNEL_HOST_PORT=${TUNNEL_HOST_PORT:-5432}
+TUNNEL_HOST=${TUNNEL_HOST:-'host2'}
+TUNNEL_COMP_LEVEL=2
+TUNNEL_RETRY_DELAY=60
+TUNNEL_LOCK=${TUNNEL_LOCK:-"$TUNNEL_PORT-$TUNNEL_HOST_PORT-$TUNNEL_HOST"}
+TUNNEL_LOCK_FILE=${TUNNEL_LOCK_FILE:-"/tmp/ssh_tunnel.$TUNNEL_LOCK"}
+
+# stat_pgbouncer.sh
+
+STAT_PGBOUNCER_FILE='/tmp/stat_pgbouncer'
+
+# stat_postgres.sh
+
+STAT_POSTGRES_FILE='/tmp/stat_postgres'
 
 # stat_statements.sh
 
@@ -137,6 +190,10 @@ STAT_TILL=${STAT_TILL:-$(date -I --date='+1 day')}
 STAT_N=${STAT_N:-10}
 STAT_ORDER=${STAT_ORDER:-0}
 STAT_KEEP_SNAPSHOTS='7 days'
+
+# stat_system.sh
+
+STAT_SYSTEM_FILE='/tmp/stat_system'
 
 # terminate_activity.sh
 
@@ -155,60 +212,3 @@ state <> 'idle' AND -- Recommended due to a pg_stat_activity bug when
 )
 EOF
 )
-
-# process_until_0.sh
-
-PROCESS_DBNAME=${PROCESS_DBNAME:-}
-
-# replica_lag.sh
-
-LAG_DBNAME='dbname1'
-LAG_DSN=${LAG_DSN:-}
-LAG_RECEIVE=$((32 * 1024 * 1024))
-LAG_REPLAY=$((32 * 1024 * 1024))
-LAG_REPLAY_AGE='5 minutes'
-
-# refresh_matviews.sh
-
-MATVIEWS_DBNAME_LIST='dbname1 dbname2'
-
-# commit_schema.sh
-
-SCHEMA_DBNAME_LIST='dbname1 dbname2'
-SCHEMA_DIR='/mnt/archive/repo'
-SCHEMA_EXCLUDE_SCHEMA_SQL=$(cat <<EOF
-SELECT nspname FROM pg_namespace
-WHERE nspname ~ '^(pgq.*|londiste)$'
-EOF
-)
-SCHEMA_EXCLUDE_TABLE_SQL=$(cat <<EOF
-SELECT schemaname, tablename FROM pg_tables
-WHERE schemaname = 'partitions'
-EOF
-)
-SCHEMA_SSH_KEY=${SCHEMA_SSH_KEY:-}
-SCHEMA_ACTION=${SCHEMA_ACTION:-}
-
-# manage_pitr.sh
-
-PITR_WAL=${PITR_WAL:-false}
-PITR_LOCAL_DIR=
-PITR_ARCHIVE_DIR='/mnt/archive/basebackups'
-PITR_WAL_ARCHIVE_DIR='/mnt/archive/wal'
-PITR_WAL_RECEIVER_LOCK_FILE=${PITR_WAL_RECEIVER_LOCK_FILE:-$(
-    echo '/tmp/wal_receiver.'$(
-        echo $PITR_WAL_ARCHIVE_DIR | sed 's/\//_/g'
-    )"-$HOST-$PORT-$USER")}
-PITR_KEEP_BACKUPS=2
-
-# stat_system.sh
-
-STAT_SYSTEM_FILE='/tmp/stat_system'
-
-# stat_postgres.sh
-
-STAT_POSTGRES_FILE='/tmp/stat_postgres'
-
-# stat_pgbouncer.sh
-
-STAT_PGBOUNCER_FILE='/tmp/stat_pgbouncer'
