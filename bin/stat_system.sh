@@ -236,7 +236,7 @@ touch $STAT_SYSTEM_FILE
 
 # Processing partition stats
 
-part_list=$(ls -l /dev/disk/by-uuid/* | sed 's/.*\///' | sort)
+part_list=$(lsblk -ro KNAME,TYPE | grep ' part' | sed 's/ .*//' | sort)
 
 for part in $part_list; do
     # disk IO count read, write
@@ -339,11 +339,11 @@ for part in $part_list; do
 
     # disk space
 
-    if [[ -z "$(grep $part /proc/swaps | cut -d ' ' -f 1)" ]]; then
+    if [[ ! -z "$(df | grep $part | cut -d ' ' -f 1)" ]]; then
         (
             src=$(
                 df 2>/dev/null | sed -r 's/\s+/ /g' | grep -E "$part " \
-                    | xargs -l bash -c "$( \
+                    | xargs -L 1 bash -c "$( \
                         echo 'echo $(ls -l $0 | sed -r 's/.* //' 2>/dev/null ' \
                         '|| echo $0) $1 $2 $3 $4 $5 $6')")
 
