@@ -32,32 +32,28 @@ function concat_headers() {
 
 function die() {
     local result=$(concat_headers "$base_headers" "$1" 'ERROR')
-    $formatter "$result" 1>&2
-    echo
+    echo "$($formatter "$result")" 1>&2
     exit 1
 }
 
 function warn() {
     local result=$(concat_headers "$base_headers" "$1" 'WARNING')
-    $formatter "$result" 1>&2
-    echo
+    echo "$($formatter "$result")" 1>&2
 }
 
 function note() {
     local result=$(concat_headers "$base_headers" "$1" 'NOTICE')
-    $formatter "$result"
-    echo
+    echo "$($formatter "$result")"
 }
 
 function info() {
     local result=$(concat_headers "$base_headers" "$1" 'INFO')
-    $formatter "$result"
-    echo
+    echo "$($formatter "$result")"
 }
 
 function progress() {
     local result=$(concat_headers "$base_headers" "$1" 'PROGRESS')
-    $formatter "$result"
+    echo -n "$($formatter "$result")"
     echo -ne "\r"
 }
 
