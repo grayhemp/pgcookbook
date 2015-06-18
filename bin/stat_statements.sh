@@ -23,7 +23,7 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 table_version=1
-function_version=3
+function_version=4
 
 sql=$(cat <<EOF
 DO \$do\$
