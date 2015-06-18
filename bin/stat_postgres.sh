@@ -23,15 +23,7 @@ touch $STAT_POSTGRES_FILE
             $PSQL -XAtc 'SELECT true::text' 2>/dev/null || echo 'false')))"
 )
 
-# postgres processes count
-
-(
-    info "$(declare -pA a=(
-        ['1/message']='Postgres processes count'
-        ['2/value']=$(ps --no-headers -C postgres | wc -l)))"
-)
-
-# data size for database, filesystem except xlog, xlog
+# data size for databases
 
 (
     db_size=$(
@@ -41,27 +33,9 @@ touch $STAT_POSTGRES_FILE
             ['1/message']='Can not get a database size data'
             ['2m/detail']=$db_size))"
 
-    data_dir=$($PSQL -XAtc 'SHOW data_directory' 2>&1) ||
-        die "$(declare -pA a=(
-            ['1/message']='Can not get a data dir'
-            ['2m/detail']=$data_dir))"
-
-    fs_size=$((
-        du -b --exclude pg_xlog -sL "$data_dir" | sed -r 's/\s+.+//') 2>&1) ||
-        die "$(declare -pA a=(
-            ['1/message']='Can not get a filesystem size data'
-            ['2m/detail']=$fs_size))"
-
-    wal_size=$((du -b -sL "$data_dir/pg_xlog" | sed -r 's/\s+.+//') 2>&1) ||
-        die "$(declare -pA a=(
-            ['1/message']='Can not get an xlog size data'
-            ['2m/detail']=$wal_size))"
-
     info "$(declare -pA a=(
-        ['1/message']='Data size, B'
-        ['2/db']=$db_size
-        ['3/filesystem_except_xlog']=$fs_size
-        ['4/xlog']=$wal_size))"
+        ['1/message']='Databases size, B'
+        ['2/value']=$db_size))"
 )
 
 # activity by state count

@@ -6,7 +6,6 @@
 #
 # - version
 # - tablespaces
-# - symlinks
 # - custom settings
 #
 # Copyright (c) 2015 Sergey Konoplev
@@ -68,45 +67,6 @@ source $(dirname $0)/utils.sh
                 ['4/location']=$location))"
         )
     done <<< "$src_list"
-)
-
-# symlinks
-
-(
-    data_dir=$($PSQL -XAtc 'SHOW data_directory' 2>&1) ||
-        die "$(declare -pA a=(
-            ['1/message']='Can not get a data dir'
-            ['2m/detail']=$data_dir))"
-
-    src_list=$(
-        (ls -l $data_dir | grep -E '^l' | sed -r 's/^(\S+\s+){8}//') 2>&1) ||
-        die "$(declare -pA a=(
-            ['1/message']='Can not list the data dir'
-            ['2m/detail']=$src_list))"
-
-    if [[ ! -z "$src_list" ]]; then
-        while read src; do
-            (
-                regex='^(\S+) -> (.+)'
-
-                [[ $src =~ $regex ]] ||
-                    die "$(declare -pA a=(
-                        ['1/message']='Can not match the symlink data'
-                        ['2m/data']=$src))"
-
-                name=${BASH_REMATCH[1]}
-                dest=${BASH_REMATCH[2]}
-
-                info "$(declare -pA a=(
-                    ['1/message']='Symlink'
-                    ['2/name']=$name
-                    ['3/dest']=$dest))"
-            )
-        done <<< "$src_list"
-    else
-        info "$(declare -pA a=(
-            ['1/message']='No symlinks found'))"
-    fi
 )
 
 # custom settings
