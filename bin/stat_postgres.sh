@@ -79,7 +79,8 @@ SELECT row_number() OVER () + 1, * FROM (
         regexp_replace(listed_state, E'\\\\W+', '_', 'g'),
         sum((pid IS NOT NULL)::integer),
         round(max(extract(epoch from now() - xact_start))::numeric, 2)
-    FROM c CROSS JOIN unnest(c.state_list) AS listed_state
+    FROM c
+    CROSS JOIN (SELECT unnest(state_list) AS listed_state FROM c) AS ls
     LEFT JOIN pg_stat_activity AS p ON
         state = listed_state OR
         listed_state = 'unknown' AND state <> all(state_list)
