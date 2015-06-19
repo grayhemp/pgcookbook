@@ -23,7 +23,8 @@ EOF
 (
     db_list=$(
         $PSQL -XAt -c \
-            "SELECT datname FROM pg_database WHERE datallowconn" 2>&1) ||
+            "SELECT datname FROM pg_database WHERE datallowconn ORDER BY 1" \
+            2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not get a database list'
             ['2m/detail']=$db_list))"
@@ -36,20 +37,24 @@ EOF
                     ['2/database']=$db
                     ['3m/detail']=$schema_line))"
 
-            [ -z "$schema_line" ] && continue
-
-            (
-                result=$($PSQL -XAt -c "$version_sql" $db 2>&1) ||
-                    die "$(declare -pA a=(
-                        ['1/message']='Can not get a version data'
-                        ['2/database']=$db
-                        ['3m/detail']=$result))"
-
+            if [[ -z "$schema_line" ]]; then
                 info "$(declare -pA a=(
-                    ['1/message']='PgQ version'
-                    ['2/database']=$db
-                    ['3/version']=${result:-null}))"
-            )
+                    ['1/message']='No PgQ installed'
+                    ['2/database']=$db))"
+            else
+                (
+                    result=$($PSQL -XAt -c "$version_sql" $db 2>&1) ||
+                        die "$(declare -pA a=(
+                            ['1/message']='Can not get a version data'
+                            ['2/database']=$db
+                            ['3m/detail']=$result))"
+
+                    info "$(declare -pA a=(
+                        ['1/message']='PgQ version'
+                        ['2/database']=$db
+                        ['3/version']=${result:-null}))"
+                )
+            fi
         done
     )
 )
