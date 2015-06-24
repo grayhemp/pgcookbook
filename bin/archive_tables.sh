@@ -33,12 +33,14 @@ error=$(mkdir -p $ARCHIVE_ARCHIVE_DIR 2>&1) ||
 for dbname in $ARCHIVE_DBNAME_LIST; do
     dump_start_time=$(timer)
 
-    part_list=$($PSQL -XAt -F '.' -c "$ARCHIVE_PARTS_SQL" $dbname 2>&1) ||
+    part_list_src=$(
+        $PSQL -Xc "\copy ($ARCHIVE_PARTS_SQL) to stdout (NULL 'null')" \
+            $dbname 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not get a table list'
-            ['2m/detail']=$part_list))"
+            ['2m/detail']=$part_list_src))"
 
-    if [ -z "$part_list" ]; then
+    if [ -z "$part_list_src" ]; then
         info "$(declare -pA a=(
             ['1/message']='There is nothing to archive'
             ['2/database']=$dbname))"
@@ -56,8 +58,11 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
                 ['3m/detail']=$error))"
     fi
 
-    for part in $part_list; do
-        file=$part.$ts.dump
+
+    while IFS=$'\t' read -r -a l; do
+        part="${l[0]}.${l[1]}"
+
+        file="$part.$ts.dump"
 
         if [[ $ARCHIVE_LOCAL_DIR != $ARCHIVE_ARCHIVE_DIR ]]; then
             [[ -f $ARCHIVE_LOCAL_DIR/$dbname/$file ]] &&
@@ -78,7 +83,7 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
                 $PGDUMP -F c -Z 2 -t $part -f $ARCHIVE_LOCAL_DIR/$dbname/$file \
                     $dbname 2>&1) ||
                 die "$(declare -pA a=(
-                    ['1/message']='Can not dump the table'
+                    ['1/message']='Can not archive the table'
                     ['2/database']=$dbname
                     ['3/table']=$part
                     ['4m/detail']=$error))"
@@ -105,16 +110,16 @@ for dbname in $ARCHIVE_DBNAME_LIST; do
                     ['4m/detail']=$error))"
 
             info "$(declare -pA a=(
-                ['1/message']='Table has been dumped'
+                ['1/message']='Table has been archived'
                 ['2/database']=$dbname
                 ['3/table']=$part))"
         else
             info "$(declare -pA a=(
-                ['1/message']='Table can be dumped'
+                ['1/message']='Table can be archived'
                 ['2/database']=$dbname
                 ['3/table']=$part))"
         fi
-    done
+    done <<< "$part_list_src"
 
     dump_time=$(( ${dump_time:-0} + $(timer $dump_start_time) ))
 

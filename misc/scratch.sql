@@ -69,7 +69,7 @@ END $$;
 
 /*
 
-rm -r /mnt/archive/parts
+rm -rf /mnt/archive/parts
 mkdir -p /mnt/archive/parts
 
 bash bin/archive_tables.sh

@@ -44,7 +44,7 @@ if $PITR_WAL; then
 
         # Originally it is a trap for the weired issue when flock
         # refuses to work when archiving to NFS mount point and
-        # experiencing network problems
+        # there are network problems
         ps ax | grep pg_receivexlog | grep "$PITR_WAL_ARCHIVE_DIR" | \
             grep -v grep >/dev/null &&
             die "$(declare -pA a=(

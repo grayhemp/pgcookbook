@@ -41,24 +41,27 @@ source $(dirname $0)/utils.sh
 
 # tablespaces
 
+sql=$(cat <<EOF
+SELECT
+    spcname,
+    pg_catalog.pg_get_userbyid(spcowner),
+    nullif(pg_catalog.pg_tablespace_location(oid), '')
+FROM pg_catalog.pg_tablespace
+ORDER BY 1
+EOF
+)
+
 (
-    src_list=$($PSQL -XAtc '\db' -F ' ' 2>&1) ||
+    src=$($PSQL -Xc "\copy ($sql) to stdout (NULL 'null')" 2>&1) ||
         die "$(declare -pA a=(
-            ['1/message']='Can not get a tablespaces data'
-            ['2m/detail']=$src_list))"
+            ['1/message']='Can not get a tablespace data'
+            ['2m/detail']=$src))"
 
-    while read src; do
+    while IFS=$'\t' read -r -a l; do
         (
-            regex='^(\S+) (\S+)( (\S+))?'
-
-            [[ $src =~ $regex ]] ||
-                die "$(declare -pA a=(
-                    ['1/message']='Can not match the tablespaces data'
-                    ['2m/data']=$src))"
-
-            name=${BASH_REMATCH[1]}
-            owner=${BASH_REMATCH[2]}
-            location=${BASH_REMATCH[4]:-null}
+            name=${l[0]}
+            owner=${l[1]}
+            location=${l[2]}
 
             info "$(declare -pA a=(
                 ['1/message']='Tablespace'
@@ -66,7 +69,7 @@ source $(dirname $0)/utils.sh
                 ['3/owner']=$owner
                 ['4/location']=$location))"
         )
-    done <<< "$src_list"
+    done <<< "$src"
 )
 
 # custom settings
@@ -79,12 +82,12 @@ EOF
 )
 
 (
-    result=$(
+    src=$(
         ($PSQL -XAt -c "$sql" \
             | cut -d '|' -f 1,2 | grep -E "$settings_regex") 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not get a settings data'
-            ['2m/detail']=$result))"
+            ['2m/detail']=$src))"
 
     declare -A a=(
         ['1/message']='Custom settings')
@@ -93,7 +96,7 @@ EOF
     while read l; do
         a["$count/${l%%|*}"]="${l#*|}"
         (( count++ ))
-    done <<< "$result"
+    done <<< "$src"
 
     info "$(declare -p a)"
 )

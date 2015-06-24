@@ -56,13 +56,13 @@ EOF
 )
 
 (
-    result=$(
+    src=$(
         ($PSQL -XAt -c 'SHOW CONFIG' pgbouncer \
             | cut -d '|' -f 1,2 | grep -E "$settings_regex") 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not get a settings data'
             ['2/dsn']=$instance_dsn
-            ['3m/detail']=$result))"
+            ['3m/detail']=$src))"
 
     declare -A a=(
         ['1/message']='Settings'
@@ -72,7 +72,7 @@ EOF
     while read l; do
         a["$count/${l%%|*}"]="${l#*|}"
         (( count++ ))
-    done <<< "$result"
+    done <<< "$src"
 
     info "$(declare -p a)"
 )

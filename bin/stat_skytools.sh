@@ -23,14 +23,14 @@ source $(dirname $0)/utils.sh
 )
 
 db_list_sql=$(cat <<EOF
-SELECT datname
+SELECT quote_ident(datname)
 FROM pg_database
 WHERE datallowconn
 ORDER BY pg_database_size(oid) DESC
 EOF
 )
 
-db_list=$($PSQL -XAt -c "$db_list_sql" 2>&1) ||
+db_list_src=$($PSQL -Xc "\copy ($db_list_sql) to stdout (NULL 'null')" 2>&1) ||
     die "$(declare -pA a=(
         ['1/message']='Can not get a database list'
         ['2m/detail']=$db_list))"
@@ -60,7 +60,8 @@ ORDER BY 3 DESC LIMIT 5
 EOF
 )
 
-for db in $db_list; do
+while IFS=$'\t' read -r -a l; do
+    db="${l[0]}"
     (
         schema_line=$(
             $PSQL -XAt -c '\dn pgq' $db 2>&1) ||
@@ -143,7 +144,7 @@ for db in $db_list; do
             )
        fi
     )
-done
+done <<< "$db_list_src"
 
 # max queue ticker lag
 # max queue ticker lag fraction of idle period
@@ -165,7 +166,9 @@ EOF
     max_fraction=0
     total_ev_per_sec=0
 
-    for db in $db_list; do
+    while IFS=$'\t' read -r -a l; do
+        db="${l[0]}"
+
         schema_line=$(
             $PSQL -XAt -c '\dn pgq' $db 2>&1) ||
             die "$(declare -pA a=(
@@ -198,7 +201,7 @@ EOF
 
             total_ev_per_sec=$(( $total_ev_per_sec + ${l[2]} ))
         fi
-    done
+    done <<< "$db_list_src"
 
     info "$(declare -pA a=(
         ['1/message']='Max queue ticker lag, s'
@@ -231,7 +234,9 @@ EOF
     max_last_seen=0
     total_pending_events=0
 
-    for db in $db_list; do
+    while IFS=$'\t' read -r -a l; do
+        db="${l[0]}"
+
         schema_line=$(
             $PSQL -XAt -c '\dn pgq' $db 2>&1) ||
             die "$(declare -pA a=(
@@ -262,7 +267,7 @@ EOF
 
             total_pending_events=$(( $total_pending_events + ${l[2]} ))
         fi
-    done
+    done <<< "$db_list_src"
 
     info "$(declare -pA a=(
         ['1/message']='Max consumer lag, s'
@@ -291,7 +296,9 @@ EOF
     queue_count=0
     consumer_count=0
 
-    for db in $db_list; do
+    while IFS=$'\t' read -r -a l; do
+        db="${l[0]}"
+
         schema_line=$(
             $PSQL -XAt -c '\dn pgq' $db 2>&1) ||
             die "$(declare -pA a=(
@@ -315,7 +322,7 @@ EOF
             queue_count=$(( $queue_count + ${l[0]} ))
             consumer_count=$(( $consumer_count + ${l[1]} ))
         fi
-    done
+    done <<< "$db_list_src"
 
     info "$(declare -pA a=(
         ['1/message']='Number of objects'

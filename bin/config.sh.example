@@ -51,19 +51,19 @@ ARCHIVE_DBNAME_LIST='dbname1 dbname2'
 ARCHIVE_LOCAL_DIR=
 ARCHIVE_ARCHIVE_DIR='/mnt/archive/parts'
 ARCHIVE_PARTS_SQL=$(cat <<EOF
-    SELECT schemaname, tablename
-    FROM pg_tables
-    WHERE
-        tablename ~ E'(table1|table2)_\\\\d{4}\\\\d{2}$' AND
-        to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
-            date_trunc('month', now()) - '1 year'::interval
-    UNION
-    SELECT schemaname, tablename
-    FROM pg_tables
-    WHERE
-        tablename ~ E'(table3|table4)_\\\\d{4}\\\\d{2}$' AND
-        to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
-            date_trunc('month', now()) - '2 years'::interval
+SELECT quote_ident(schemaname), quote_ident(tablename)
+FROM pg_tables
+WHERE
+    tablename ~ E'(table1|table2)_\\\\d{4}\\\\d{2}$' AND
+    to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
+        date_trunc('month', now()) - '1 year'::interval
+UNION
+SELECT quote_ident(schemaname), quote_ident(tablename)
+FROM pg_tables
+WHERE
+    tablename ~ E'(table3|table4)_\\\\d{4}\\\\d{2}$' AND
+    to_timestamp(regexp_replace(tablename, '^.+_', ''), 'YYYYMM') <
+        date_trunc('month', now()) - '2 years'::interval
 EOF
 )
 function ARCHIVE_COMMAND_BEFORE_DROP() {
@@ -80,12 +80,14 @@ function ARCHIVE_COMMAND_AFTER_DROP() {
 SCHEMA_DBNAME_LIST='dbname1 dbname2'
 SCHEMA_DIR='/mnt/archive/repo'
 SCHEMA_EXCLUDE_SCHEMA_SQL=$(cat <<EOF
-SELECT nspname FROM pg_namespace
+SELECT quote_ident(nspname)
+FROM pg_namespace
 WHERE nspname ~ '^(pgq.*|londiste)$'
 EOF
 )
 SCHEMA_EXCLUDE_TABLE_SQL=$(cat <<EOF
-SELECT schemaname, tablename FROM pg_tables
+SELECT quote_ident(schemaname), quote_ident(tablename)
+FROM pg_tables
 WHERE schemaname = 'partitions'
 EOF
 )
@@ -138,27 +140,30 @@ RESTORE_FILE=${RESTORE_FILE:-$(
     sort | tail -n 1)'/dbname1.dump.gz'}
 RESTORE_THREADS=4
 RESTORE_FILTER_SQL=$(cat <<EOF
-    SELECT schemaname, tablename FROM pg_tables
-    WHERE tablename ~ 'temp1|temp2'
+SELECT quote_ident(schemaname), quote_ident(tablename)
+FROM pg_tables
+WHERE tablename ~ 'temp1|temp2'
 EOF
 )
 RESTORE_FILTER_DATA_SQL=$(cat <<EOF
-    SELECT schemaname, tablename FROM pg_tables
-    WHERE tablename ~ 'log1|log2'
+SELECT quote_ident(schemaname), quote_ident(tablename)
+FROM pg_tables
+WHERE tablename ~ 'log1|log2'
 EOF
 )
 RESTORE_FILTER_DATA_PART_SQL=$(cat <<EOF
-    SELECT
-        schemaname, tablename,
-        'status <> 1' AS conditions
-    FROM pg_tables
-    WHERE tablename ~ 'data1|data2'
+SELECT
+    quote_ident(schemaname), quote_ident(tablename),
+    'status <> 1' AS conditions
+FROM pg_tables
+WHERE tablename ~ 'data1|data2'
 EOF
 )
 RESTORE_PRESERVE_DIR='/mnt/archive/tmp'
 RESTORE_PRESERVE_SQL=$(cat <<EOF
-    SELECT schemaname, tablename FROM pg_tables
-    WHERE tablename ~ 'pres1|pres2'
+SELECT quote_ident(schemaname), quote_ident(tablename)
+FROM pg_tables
+WHERE tablename ~ 'pres1|pres2'
 EOF
 )
 

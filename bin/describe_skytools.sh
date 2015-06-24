@@ -20,17 +20,20 @@ SELECT pgq.version()
 EOF
 )
 
+db_list_sql=$(cat <<EOF
+SELECT quote_ident(datname) FROM pg_database WHERE datallowconn ORDER BY 1
+EOF
+)
+
 (
-    db_list=$(
-        $PSQL -XAt -c \
-            "SELECT datname FROM pg_database WHERE datallowconn ORDER BY 1" \
-            2>&1) ||
+    src=$($PSQL -Xc "\copy ($db_list_sql) to stdout (NULL 'null')" 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not get a database list'
-            ['2m/detail']=$db_list))"
+            ['2m/detail']=$src))"
 
     (
-        for db in $db_list; do
+        while IFS=$'\t' read -r -a l; do
+            db="${l[0]}"
             schema_line=$($PSQL -XAtc '\dn pgq' $db 2>&1) ||
                 die "$(declare -pA a=(
                     ['1/message']='Can not check the pgq schema'
@@ -55,6 +58,6 @@ EOF
                         ['3/version']=${result:-null}))"
                 )
             fi
-        done
+        done <<< "$src"
     )
 )

@@ -44,12 +44,12 @@ COPY (
 EOF
 )
 
-result=$($PSQL -Xc "$sql" postgres 2>&1) ||
+src=$($PSQL -Xc "$sql" postgres 2>&1) ||
     die "$(declare -pA a=(
         ['1/message']='Can not perform termination'
-        ['2m/detail']=$result))"
+        ['2m/detail']=$src))"
 
-if [[ -z "$result" ]]; then
+if [[ -z "$src" ]]; then
     info "$(declare -pA a=(
         ['1/message']='No activity has been terminated'))"
 else
@@ -71,5 +71,5 @@ else
             ['14/waiting']=${l[12]}
             ['15/state']=${l[13]}
             ['16m/query']=${l[14]}))"
-    done <<< "$result"
+    done <<< "$src"
 fi
