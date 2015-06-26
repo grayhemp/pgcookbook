@@ -23,7 +23,7 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 table_version=1
-function_version=4
+function_version=5
 
 sql=$(cat <<EOF
 DO \$do\$
@@ -156,44 +156,46 @@ BEGIN
                         ELSE 0 END AS io_time_perc_rel,
                     100 * calls / sum(calls) OVER () AS calls_percent,
                     CASE
-                        WHEN row_number() OVER () > i_n THEN 'other'
-                        ELSE raw_query END AS query,
-                    CASE
-                        WHEN row_number() OVER () > i_n THEN i_n + 1
-                        ELSE row_number() OVER () END AS row_number
+                        WHEN row_number() OVER () > i_n THEN 'all the other'
+                        ELSE raw_query END AS query
                 FROM q1
+            ), q3 AS (
+                SELECT
+                    sum(time)::numeric(18,3) AS time,
+                    sum(io_time)::numeric(18,3) AS io_time,
+                    sum(time_percent)::numeric(5,2) AS time_percent,
+                    sum(io_time_percent)::numeric(5,2) AS io_time_percent,
+                    sum(io_time_perc_rel)::numeric(5,2) AS io_time_perc_rel,
+                    avg(time_avg)::numeric(18,3) AS time_avg,
+                    avg(io_time_avg)::numeric(18,3) AS io_time_avg,
+                    sum(calls)::integer AS calls,
+                    sum(calls_percent)::numeric(5,2) AS calls_percent,
+                    sum(rows)::integer AS rows,
+                    avg(rows_avg)::numeric(18,3) AS rows_avg,
+                    nullif(array_to_string(
+                        array(
+                            SELECT DISTINCT unnest(
+                                string_to_array(string_agg(users, ' '), ' '))
+                        ), ', '
+                    )::text, '') AS users,
+                    nullif(array_to_string(
+                        array(
+                            SELECT DISTINCT unnest(
+                                string_to_array(string_agg(dbs, ' '), ' '))
+                        ), ', '
+                    )::text, '') AS dbs,
+                    query::text
+                FROM q2
+                GROUP by query
+                ORDER BY
+                    CASE
+                        WHEN i_order = 0 THEN sum(time)
+                        WHEN i_order = 1 THEN sum(calls)
+                        ELSE sum(io_time)
+                    END DESC
             )
-            SELECT
-                row_number::integer AS position,
-                sum(time)::numeric(18,3) AS time,
-                sum(io_time)::numeric(18,3) AS io_time,
-                sum(time_percent)::numeric(5,2) AS time_percent,
-                sum(io_time_percent)::numeric(5,2) AS io_time_percent,
-                sum(io_time_perc_rel)::numeric(5,2) AS io_time_perc_rel,
-                sum(time_avg)::numeric(18,3) AS time_avg,
-                sum(io_time_avg)::numeric(18,3) AS io_time_avg,
-                sum(calls)::integer AS calls,
-                sum(calls_percent)::numeric(5,2) AS calls_percent,
-                sum(rows)::integer AS rows,
-                (
-                    sum(rows)::numeric / sum(calls)
-                )::numeric(18,3) AS rows_avg,
-                nullif(array_to_string(
-                    array(
-                        SELECT DISTINCT unnest(
-                            string_to_array(string_agg(users, ' '), ' '))
-                    ), ', '
-                )::text, '') AS users,
-                nullif(array_to_string(
-                    array(
-                        SELECT DISTINCT unnest(
-                            string_to_array(string_agg(dbs, ' '), ' '))
-                    ), ', '
-                )::text, '') AS dbs,
-                nullif(query, '')::text
-            FROM q2
-            GROUP by query, row_number
-            ORDER BY row_number);
+            SELECT (row_number() OVER ())::integer AS position, *
+            FROM q3);
         END \$function\$;
 
         FOR name IN

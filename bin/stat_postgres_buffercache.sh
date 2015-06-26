@@ -37,12 +37,21 @@ EOF
 )
 
 databases_by_shared_buffers_sql=$(cat <<EOF
-SELECT datname, count(*)
-FROM pg_buffercache AS b
-JOIN pg_database AS d ON b.reldatabase = d.oid
-WHERE d.datallowconn
-GROUP BY 1 ORDER BY 2 DESC
-LIMIT 5
+SELECT
+    CASE WHEN rn <= $STAT_POSTGRES_BUFFERCACHE_TOP_DATABASES_N
+         THEN datname ELSE 'all the other' END,
+    sum(cnt)
+FROM (
+    SELECT
+        datname, count(*) AS cnt,
+        row_number() OVER (ORDER BY count(*) DESC) AS rn
+    FROM pg_buffercache AS b
+    JOIN pg_database AS d ON b.reldatabase = d.oid
+    WHERE d.datallowconn
+    GROUP BY 1
+) AS s
+GROUP BY 1
+ORDER BY 2 DESC
 EOF
 )
 
@@ -101,24 +110,46 @@ EOF
 )
 
 tables_by_shared_buffers_sql=$(cat <<EOF
-SELECT n.nspname, c.relname, count(*)
-FROM pg_buffercache AS b
-JOIN pg_class AS c ON c.relfilenode = b.relfilenode
-JOIN pg_namespace AS n ON n.oid = c.relnamespace
-WHERE c.relkind IN ('r', 't')
-GROUP BY 1, 2 ORDER BY 3 DESC
-LIMIT 5
+SELECT
+    CASE WHEN rn <= $STAT_POSTGRES_BUFFERCACHE_TOP_TABLES_N
+         THEN nspname ELSE 'all the other' END,
+    CASE WHEN rn <= $STAT_POSTGRES_BUFFERCACHE_TOP_TABLES_N
+         THEN relname ELSE 'all the other' END,
+    sum(cnt)
+FROM (
+    SELECT
+        n.nspname, c.relname, count(*) AS cnt,
+        row_number() OVER (ORDER BY count(*) DESC) AS rn
+    FROM pg_buffercache AS b
+    JOIN pg_class AS c ON c.relfilenode = b.relfilenode
+    JOIN pg_namespace AS n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('r', 't')
+    GROUP BY 1, 2
+) AS s
+GROUP BY 1, 2
+ORDER BY 3 DESC
 EOF
 )
 
 indexes_by_shared_buffers_sql=$(cat <<EOF
-SELECT n.nspname, c.relname, count(*)
-FROM pg_buffercache AS b
-JOIN pg_class AS c ON c.relfilenode = b.relfilenode
-JOIN pg_namespace AS n ON n.oid = c.relnamespace
-WHERE c.relkind = 'i'
-GROUP BY 1, 2 ORDER BY 3 DESC
-LIMIT 5
+SELECT
+    CASE WHEN rn <= $STAT_POSTGRES_BUFFERCACHE_TOP_INDEXES_N
+         THEN nspname ELSE 'all the other' END,
+    CASE WHEN rn <= $STAT_POSTGRES_BUFFERCACHE_TOP_INDEXES_N
+         THEN relname ELSE 'all the other' END,
+    sum(cnt)
+FROM (
+    SELECT
+        n.nspname, c.relname, count(*) AS cnt,
+        row_number() OVER (ORDER BY count(*) DESC) AS rn
+    FROM pg_buffercache AS b
+    JOIN pg_class AS c ON c.relfilenode = b.relfilenode
+    JOIN pg_namespace AS n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'i'
+    GROUP BY 1, 2
+) AS s
+GROUP BY 1, 2
+ORDER BY 3 DESC
 EOF
 )
 

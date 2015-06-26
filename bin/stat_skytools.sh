@@ -40,23 +40,57 @@ db_list_src=$($PSQL -Xc "\copy ($db_list_sql) to stdout (NULL 'null')" 2>&1) ||
 # per database top consumers by last seen age
 
 queue_lag_sql=$(cat <<EOF
-SELECT queue_name, extract(epoch from ticker_lag)::integer
-FROM pgq.get_queue_info()
-ORDER BY 2 DESC LIMIT 5
+SELECT
+    CASE WHEN rn <= $STAT_SKYTOOLS_TOP_N
+         THEN q ELSE 'all the other' END,
+    round(avg(v))
+FROM (
+    SELECT
+        queue_name AS q,
+        extract(epoch from ticker_lag) AS v,
+        row_number() OVER (ORDER BY extract(epoch from ticker_lag) DESC) AS rn
+    FROM pgq.get_queue_info()
+) AS s
+GROUP BY 1
+ORDER BY 2 DESC
 EOF
 )
 
 consumer_lag_sql=$(cat <<EOF
-SELECT queue_name, consumer_name, extract(epoch from lag)::integer
-FROM pgq.get_consumer_info()
-ORDER BY 3 DESC LIMIT 5
+SELECT
+    CASE WHEN rn <= $STAT_SKYTOOLS_TOP_N
+         THEN q ELSE 'all the other' END,
+    CASE WHEN rn <= $STAT_SKYTOOLS_TOP_N
+         THEN c ELSE 'all the other' END,
+    round(avg(v)) AS v
+FROM (
+    SELECT
+        queue_name AS q, consumer_name AS c,
+        extract(epoch from lag) AS v,
+        row_number() OVER (ORDER BY extract(epoch from lag) DESC) AS rn
+    FROM pgq.get_consumer_info()
+) AS s
+GROUP BY 1, 2
+ORDER BY 3 DESC
 EOF
 )
 
 consumer_last_seen_sql=$(cat <<EOF
-SELECT queue_name, consumer_name, extract(epoch from last_seen)::integer
-FROM pgq.get_consumer_info()
-ORDER BY 3 DESC LIMIT 5
+SELECT
+    CASE WHEN rn <= $STAT_SKYTOOLS_TOP_N
+         THEN q ELSE 'all the other' END,
+    CASE WHEN rn <= $STAT_SKYTOOLS_TOP_N
+         THEN c ELSE 'all the other' END,
+    round(avg(v)) AS v
+FROM (
+    SELECT
+        queue_name AS q, consumer_name AS c,
+        extract(epoch from last_seen) AS v,
+        row_number() OVER (ORDER BY extract(epoch from last_seen) DESC) AS rn
+    FROM pgq.get_consumer_info()
+) AS s
+GROUP BY 1, 2
+ORDER BY 3 DESC
 EOF
 )
 

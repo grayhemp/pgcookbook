@@ -15,14 +15,21 @@ source $(dirname $0)/utils.sh
 # top databases by size
 
 sql=$(cat <<EOF
-SELECT datname, pg_database_size(oid)
-FROM pg_database
-WHERE datallowconn
+SELECT
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_DATABASES_N
+         THEN datname ELSE 'all the other' END,
+    sum(size)
+FROM (
+    SELECT
+        datname, pg_database_size(oid) AS size,
+        row_number() OVER (ORDER BY pg_database_size(oid) DESC) AS rn
+    FROM pg_database
+    WHERE datallowconn
+) AS s
+GROUP BY 1
 ORDER BY 2 DESC
-LIMIT 5
 EOF
 )
-
 (
     src=$($PSQL -Xc "\copy ($sql) to stdout (NULL 'null')" 2>&1) ||
         die "$(declare -pA a=(
@@ -58,7 +65,7 @@ EOF
 # foreign keys with no indexes
 
 db_list_sql=$(cat <<EOF
-SELECT datname
+SELECT quote_ident(datname)
 FROM pg_database
 WHERE datallowconn
 ORDER BY pg_database_size(oid) DESC
@@ -66,23 +73,43 @@ EOF
 )
 
 tables_by_size_sql=$(cat <<EOF
-SELECT n.nspname, c.relname, pg_total_relation_size(c.oid)
-FROM pg_class AS c
-JOIN pg_namespace AS n ON n.oid = c.relnamespace
-WHERE c.relkind = 'r'
+SELECT
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+         THEN nspname ELSE 'all the other' END,
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+         THEN relname ELSE 'all the other' END,
+    sum(size)
+FROM (
+    SELECT
+        n.nspname, c.relname, pg_total_relation_size(c.oid) AS size,
+        row_number() OVER (ORDER BY pg_total_relation_size(c.oid) DESC) AS rn
+    FROM pg_class AS c
+    JOIN pg_namespace AS n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'r'
+) AS s
+GROUP BY 1, 2
 ORDER BY 3 DESC
-LIMIT 5
 EOF
 )
 
 tables_by_tupple_count_sql=$(cat <<EOF
-SELECT n.nspname, c.relname, n_live_tup + n_dead_tup
-FROM pg_class AS c
-JOIN pg_namespace AS n ON n.oid = c.relnamespace
-JOIN pg_stat_all_tables AS s ON s.relid = c.oid
-WHERE c.relkind IN ('r', 't')
+SELECT
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+         THEN nspname ELSE 'all the other' END,
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+         THEN relname ELSE 'all the other' END,
+    sum(tup)
+FROM (
+    SELECT
+        n.nspname, c.relname, n_live_tup + n_dead_tup AS tup,
+        row_number() OVER (ORDER BY n_live_tup + n_dead_tup DESC) AS rn
+    FROM pg_class AS c
+    JOIN pg_namespace AS n ON n.oid = c.relnamespace
+    JOIN pg_stat_all_tables AS s ON s.relid = c.oid
+    WHERE c.relkind IN ('r', 't')
+) AS s
+GROUP BY 1, 2
 ORDER BY 3 DESC
-LIMIT 5
 EOF
 )
 
@@ -91,55 +118,172 @@ WITH s AS (
     SELECT * FROM pg_stat_all_tables
 ), tables_by_total_fetched AS (
     SELECT
-        schemaname AS s, relname AS r,
-        coalesce(seq_tup_read, 0) + coalesce(idx_tup_fetch, 0) AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            coalesce(seq_tup_read, 0) + coalesce(idx_tup_fetch, 0) AS v,
+            row_number() OVER (
+                ORDER BY
+                    coalesce(seq_tup_read, 0) +
+                    coalesce(idx_tup_fetch, 0) DESC
+            ) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_total_inserts AS (
     SELECT
-        schemaname AS s, relname AS r,
-        coalesce(n_tup_ins, 0) AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            coalesce(n_tup_ins, 0) AS v,
+            row_number() OVER (ORDER BY coalesce(n_tup_ins, 0) DESC) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_total_updates AS (
     SELECT
-        schemaname AS s, relname AS r,
-        coalesce(n_tup_upd, 0) AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            coalesce(n_tup_upd, 0) AS v,
+            row_number() OVER (ORDER BY coalesce(n_tup_upd, 0) DESC) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_total_deletes AS (
     SELECT
-        schemaname AS s, relname AS r,
-        coalesce(n_tup_del, 0) AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            coalesce(n_tup_del, 0) AS v,
+            row_number() OVER (ORDER BY coalesce(n_tup_del, 0) DESC) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_total_seq_scan_row_count AS (
     SELECT
-        schemaname AS s, relname AS r,
-        seq_tup_read AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            seq_tup_read AS v,
+            row_number() OVER (ORDER BY seq_tup_read DESC) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_total_not_hot_updates AS (
     SELECT
-        schemaname AS s, relname AS r,
-        n_tup_upd - n_tup_hot_upd AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            n_tup_upd - n_tup_hot_upd AS v,
+            row_number() OVER (ORDER BY n_tup_upd - n_tup_hot_upd DESC) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_dead_tuple_count AS (
     SELECT
-        schemaname AS s, relname AS r,
-        n_dead_tup AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            n_dead_tup AS v,
+            row_number() OVER (ORDER BY n_dead_tup DESC) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_dead_tuple_fraction AS (
     SELECT
-        schemaname AS s, relname AS r,
-        round(n_dead_tup::numeric / (n_dead_tup + n_live_tup), 2) AS v
-    FROM s WHERE n_dead_tup + n_live_tup > 10000
-    ORDER BY v DESC, n_dead_tup + n_live_tup DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        round(avg(v), 2) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            n_dead_tup::numeric / (n_dead_tup + n_live_tup) AS v,
+            row_number() OVER (
+                ORDER BY
+                    n_dead_tup::numeric / (n_dead_tup + n_live_tup) DESC
+            ) AS rn
+        FROM s
+        WHERE n_dead_tup + n_live_tup > 10000
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_total_autovacuum AS (
     SELECT
-        schemaname AS s, relname AS r,
-        autovacuum_count AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            autovacuum_count AS v,
+            row_number() OVER (ORDER BY autovacuum_count DESC) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 ), tables_by_total_autoanalyze AS (
     SELECT
-        schemaname AS s, relname AS r,
-        autoanalyze_count AS v
-    FROM s ORDER BY 3 DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        sum(v) AS v
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            autoanalyze_count AS v,
+            row_number() OVER (ORDER BY autoanalyze_count DESC) AS rn
+        FROM s
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC
 )
 SELECT s, r, v::text, 1 FROM tables_by_total_fetched UNION ALL
 SELECT s, r, v::text, 2 FROM tables_by_total_inserts UNION ALL
@@ -159,10 +303,30 @@ WITH s AS (
     SELECT * FROM pg_statio_all_tables
 ), tables_by_total_cache_miss AS (
     SELECT
-        schemaname AS s, relname AS r,
-        round(heap_blks_read::numeric / (heap_blks_hit + heap_blks_read), 2) AS v
-    FROM s WHERE heap_blks_hit + heap_blks_read > 10000
-    ORDER BY v DESC, heap_blks_hit + heap_blks_read LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+             THEN r ELSE 'all the other' END AS r,
+        round(avg(v), 2) AS v,
+        sum(ops)
+    FROM (
+        SELECT
+            schemaname AS s, relname AS r,
+            heap_blks_hit + heap_blks_read AS ops,
+            heap_blks_read::numeric /
+                (heap_blks_hit + heap_blks_read) AS v,
+            row_number() OVER (
+                ORDER BY
+                    round(
+                        heap_blks_read::numeric /
+                        (heap_blks_hit + heap_blks_read),
+                        2) DESC
+            ) AS rn
+        FROM s
+        WHERE heap_blks_hit + heap_blks_read > 10000
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC, 4
 )
 SELECT s, r, v::text, 1 FROM tables_by_total_cache_miss
 EOF
@@ -170,72 +334,94 @@ EOF
 
 tables_by_bloat_sql=$(cat <<EOF
 SELECT
-    nspname, relname,
-    CASE WHEN size::real > 0 THEN
-        round(
-            100 * (
-                1 - (pure_page_count * 100 / fillfactor) / (size::real / bs)
-            )::numeric, 2
-        )
-    ELSE 0 END AS v
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+         THEN s ELSE 'all the other' END AS s,
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_TABLES_N
+         THEN r ELSE 'all the other' END AS r,
+    CASE WHEN avg(v) < 0 THEN 0 ELSE round(avg(v), 2) END AS v
 FROM (
-    SELECT
-        nspname, relname,
-        bs, size, fillfactor,
-        ceil(
-            reltuples * (
-                max(stanullfrac) * ma * ceil(
-                    (
-                        ma * ceil(
-                            (
-                                header_width +
-                                ma * ceil(count(1)::real / ma)
-                            )::real / ma
-                        ) + sum((1 - stanullfrac) * stawidth)
-                    )::real / ma
-                ) +
-                (1 - max(stanullfrac)) * ma * ceil(
-                    (
-                        ma * ceil(header_width::real / ma) +
-                        sum((1 - stanullfrac) * stawidth)
-                    )::real / ma
-                )
-            )::real / (bs - 24)
-        ) AS pure_page_count
+    SELECT *, row_number() OVER (ORDER BY v DESC) AS rn
     FROM (
         SELECT
-            c.oid AS class_oid,
-            n.nspname, c.relname, c.reltuples,
-            23 AS header_width, 8 AS ma,
-            current_setting('block_size')::integer AS bs,
-            pg_relation_size(c.oid) AS size,
-            coalesce((
-                SELECT (
-                    regexp_matches(
-                        c.reloptions::text, E'.*fillfactor=(\\d+).*'))[1]),
-                '100')::real AS fillfactor
-        FROM pg_class AS c
-        JOIN pg_namespace AS n ON n.oid = c.relnamespace
-        WHERE c.relkind IN ('r', 't')
-    ) AS const
-    LEFT JOIN pg_catalog.pg_statistic ON starelid = class_oid
-    GROUP BY
-        bs, class_oid, fillfactor, ma, size, reltuples, header_width,
-        nspname, relname
-) AS sq
-WHERE pure_page_count IS NOT NULL
+            nspname AS s, relname AS r,
+            CASE WHEN size::real > 0 THEN
+                100 * (
+                    1 - (pure_page_count * 100 / fillfactor) /
+                    (size::real / bs)
+                )::numeric
+            ELSE 0 END AS v
+        FROM (
+            SELECT
+                nspname, relname,
+                bs, size, fillfactor,
+                ceil(
+                    reltuples * (
+                        max(stanullfrac) * ma * ceil(
+                            (
+                                ma * ceil(
+                                    (
+                                        header_width +
+                                        ma * ceil(count(1)::real / ma)
+                                    )::real / ma
+                                ) + sum((1 - stanullfrac) * stawidth)
+                            )::real / ma
+                        ) +
+                        (1 - max(stanullfrac)) * ma * ceil(
+                            (
+                                ma * ceil(header_width::real / ma) +
+                                sum((1 - stanullfrac) * stawidth)
+                            )::real / ma
+                        )
+                    )::real / (bs - 24)
+                ) AS pure_page_count
+            FROM (
+                SELECT
+                    c.oid AS class_oid,
+                    n.nspname, c.relname, c.reltuples,
+                    23 AS header_width, 8 AS ma,
+                    current_setting('block_size')::integer AS bs,
+                    pg_relation_size(c.oid) AS size,
+                    coalesce((
+                        SELECT (
+                            regexp_matches(
+                                c.reloptions::text,
+                                E'.*fillfactor=(\\d+).*'))[1]),
+                        '100')::real AS fillfactor
+                FROM pg_class AS c
+                JOIN pg_namespace AS n ON n.oid = c.relnamespace
+                WHERE c.relkind IN ('r', 't')
+            ) AS const
+            LEFT JOIN pg_catalog.pg_statistic ON starelid = class_oid
+            GROUP BY
+                bs, class_oid, fillfactor, ma, size, reltuples, header_width,
+                nspname, relname
+        ) AS sq
+        WHERE pure_page_count IS NOT NULL
+    ) AS ss
+) AS s
+GROUP BY 1, 2
 ORDER BY 3 DESC
-LIMIT 5
 EOF
 )
 
 indexes_by_size_sql=$(cat <<EOF
-SELECT n.nspname, c.relname, pg_total_relation_size(c.oid)
-FROM pg_class AS c
-JOIN pg_namespace AS n ON n.oid = c.relnamespace
-WHERE c.relkind = 'i'
+SELECT
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+             THEN r ELSE 'all the other' END AS r,
+    sum(v) AS v
+FROM (
+    SELECT
+        n.nspname AS s, c.relname AS r,
+        pg_total_relation_size(c.oid) AS v,
+        row_number() OVER (ORDER BY pg_total_relation_size(c.oid) DESC) AS rn
+    FROM pg_class AS c
+    JOIN pg_namespace AS n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'i'
+) AS s
+GROUP BY 1, 2
 ORDER BY 3 DESC
-LIMIT 5
 EOF
 )
 
@@ -244,10 +430,21 @@ WITH s AS (
     SELECT * FROM pg_stat_all_indexes
 ), indexes_by_total_least_fetch_fraction AS (
     SELECT
-        schemaname AS s, indexrelname AS r,
-        round(idx_tup_fetch::numeric / (idx_tup_fetch + idx_tup_read), 2) AS v
-    FROM s WHERE idx_tup_fetch + idx_tup_read > 10000
-    ORDER BY v, idx_tup_fetch + idx_tup_read DESC LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+             THEN r ELSE 'all the other' END AS r,
+        round(avg(v), 2) AS v
+    FROM (
+        SELECT
+            schemaname AS s, indexrelname AS r,
+            idx_tup_fetch::numeric / idx_tup_read AS v,
+            row_number() OVER (
+                ORDER BY idx_tup_fetch::numeric / idx_tup_read) AS rn
+        FROM s WHERE idx_tup_read > 10000
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3
 )
 SELECT s, r, v::text, 1 FROM indexes_by_total_least_fetch_fraction
 EOF
@@ -258,10 +455,26 @@ WITH s AS (
     SELECT * FROM pg_statio_all_indexes
 ), indexes_by_total_cache_miss AS (
     SELECT
-        schemaname AS s, indexrelname AS r,
-        round(idx_blks_read::numeric / (idx_blks_hit + idx_blks_read), 2) AS v
-    FROM s WHERE idx_blks_hit + idx_blks_read > 10000
-    ORDER BY v DESC, idx_blks_hit + idx_blks_read LIMIT 5
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+             THEN r ELSE 'all the other' END AS r,
+        round(avg(v), 2) AS v,
+        sum(ops)
+    FROM (
+        SELECT
+            schemaname AS s, indexrelname AS r,
+            idx_blks_hit + idx_blks_read AS ops,
+            idx_blks_read::numeric / (idx_blks_hit + idx_blks_read) AS v,
+            row_number() OVER (
+                ORDER BY
+                    idx_blks_read::numeric / (idx_blks_hit + idx_blks_read)
+                    DESC
+            ) AS rn
+        FROM s WHERE idx_blks_hit + idx_blks_read > 10000
+    ) AS s
+    GROUP BY 1, 2
+    ORDER BY 3 DESC, 4
 )
 SELECT s, r, v::text, 1 FROM indexes_by_total_cache_miss
 EOF
@@ -270,104 +483,132 @@ EOF
 indexes_by_bloat_sql=$(cat <<EOF
 -- We use COPY in the query because it contain comments
 COPY (
-    -- Original query has been taken from https://github.com/pgexperts/pgx_scripts
-    -- WARNING: executed with a non-superuser role, the query inspect only index on tables you are granted to read.
-    -- WARNING: rows with is_na = 't' are known to have bad statistics ("name" type is not supported).
-    -- This query is compatible with PostgreSQL 8.2 and after
-    SELECT nspname, idxname, round(100 * (relpages - est_pages_ff)::numeric / relpages, 2)
+    SELECT
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+             THEN s ELSE 'all the other' END AS s,
+        CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+             THEN r ELSE 'all the other' END AS r,
+        CASE WHEN avg(v) < 0 THEN 0 ELSE round(avg(v), 2) END AS v
     FROM (
-      SELECT coalesce(1 +
-           ceil(reltuples/floor((bs-pageopqdata-pagehdr)/(4+nulldatahdrwidth)::float)), 0 -- ItemIdData size + computed avg size of a tuple (nulldatahdrwidth)
-        ) AS est_pages,
-        coalesce(1 +
-           ceil(reltuples/floor((bs-pageopqdata-pagehdr)*fillfactor/(100*(4+nulldatahdrwidth)::float))), 0
-        ) AS est_pages_ff,
-        bs, nspname, table_oid, tblname, idxname, relpages, fillfactor, is_na
-        -- , stattuple.pgstatindex(quote_ident(nspname)||'.'||quote_ident(idxname)) AS pst, index_tuple_hdr_bm, maxalign, pagehdr, nulldatawidth, nulldatahdrwidth, reltuples -- (DEBUG INFO)
-      FROM (
-        SELECT maxalign, bs, nspname, tblname, idxname, reltuples, relpages, relam, table_oid, fillfactor,
-          ( index_tuple_hdr_bm +
-              maxalign - CASE -- Add padding to the index tuple header to align on MAXALIGN
-                WHEN index_tuple_hdr_bm%maxalign = 0 THEN maxalign
-                ELSE index_tuple_hdr_bm%maxalign
-              END
-            + nulldatawidth + maxalign - CASE -- Add padding to the data to align on MAXALIGN
-                WHEN nulldatawidth = 0 THEN 0
-                WHEN nulldatawidth::integer%maxalign = 0 THEN maxalign
-                ELSE nulldatawidth::integer%maxalign
-              END
-          )::numeric AS nulldatahdrwidth, pagehdr, pageopqdata, is_na
-          -- , index_tuple_hdr_bm, nulldatawidth -- (DEBUG INFO)
+        SELECT *, row_number() OVER (ORDER BY v DESC) AS rn
         FROM (
-          SELECT
-            i.nspname, i.tblname, i.idxname, i.reltuples, i.relpages, i.relam, a.attrelid AS table_oid,
-            current_setting('block_size')::numeric AS bs, fillfactor,
-            CASE -- MAXALIGN: 4 on 32bits, 8 on 64bits (and mingw32 ?)
-              WHEN version() ~ 'mingw32' OR version() ~ '64-bit|x86_64|ppc64|ia64|amd64' THEN 8
-              ELSE 4
-            END AS maxalign,
-            /* per page header, fixed size: 20 for 7.X, 24 for others */
-            24 AS pagehdr,
-            /* per page btree opaque data */
-            16 AS pageopqdata,
-            /* per tuple header: add IndexAttributeBitMapData if some cols are null-able */
-            CASE WHEN max(coalesce(s.null_frac,0)) = 0
-              THEN 2 -- IndexTupleData size
-              ELSE 2 + (( 32 + 8 - 1 ) / 8) -- IndexTupleData size + IndexAttributeBitMapData size ( max num filed per index + 8 - 1 /8)
-            END AS index_tuple_hdr_bm,
-            /* data len: we remove null values save space using it fractionnal part from stats */
-            sum( (1-coalesce(s.null_frac, 0)) * coalesce(s.avg_width, 1024)) AS nulldatawidth,
-            max( CASE WHEN a.atttypid = 'pg_catalog.name'::regtype THEN 1 ELSE 0 END ) > 0 AS is_na
-          FROM pg_attribute AS a
-            JOIN (
-              SELECT nspname, tbl.relname AS tblname, idx.relname AS idxname, idx.reltuples, idx.relpages, idx.relam,
-                indrelid, indexrelid, indkey::smallint[] AS attnum,
-                coalesce(substring(
-                  array_to_string(idx.reloptions, ' ')
-                   from 'fillfactor=([0-9]+)')::smallint, 90) AS fillfactor
-              FROM pg_index
-                JOIN pg_class idx ON idx.oid=pg_index.indexrelid
-                JOIN pg_class tbl ON tbl.oid=pg_index.indrelid
-                JOIN pg_namespace ON pg_namespace.oid = idx.relnamespace
-              WHERE pg_index.indisvalid AND tbl.relkind = 'r' AND idx.relpages > 0
-            ) AS i ON a.attrelid = i.indexrelid
-            JOIN pg_stats AS s ON s.schemaname = i.nspname
-              AND ((s.tablename = i.tblname AND s.attname = pg_catalog.pg_get_indexdef(a.attrelid, a.attnum, TRUE)) -- stats from tbl
-              OR (s.tablename = i.idxname AND s.attname = a.attname))-- stats from functionnal cols
-            JOIN pg_type AS t ON a.atttypid = t.oid
-          WHERE a.attnum > 0
-          GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9
-        ) AS s1
-      ) AS s2
-        JOIN pg_am am ON s2.relam = am.oid WHERE am.amname = 'btree'
-    ) AS sub
-    -- WHERE NOT is_na
+            -- Original query has been taken from https://github.com/pgexperts/pgx_scripts
+            -- WARNING: executed with a non-superuser role, the query inspect only index on tables you are granted to read.
+            -- WARNING: rows with is_na = 't' are known to have bad statistics ("name" type is not supported).
+            -- This query is compatible with PostgreSQL 8.2 and after
+            SELECT
+                nspname AS s, idxname AS r,
+                round(100 * (relpages - est_pages_ff)::numeric / relpages, 2) AS v
+            FROM (
+              SELECT coalesce(1 +
+                   ceil(reltuples/floor((bs-pageopqdata-pagehdr)/(4+nulldatahdrwidth)::float)), 0 -- ItemIdData size + computed avg size of a tuple (nulldatahdrwidth)
+                ) AS est_pages,
+                coalesce(1 +
+                   ceil(reltuples/floor((bs-pageopqdata-pagehdr)*fillfactor/(100*(4+nulldatahdrwidth)::float))), 0
+                ) AS est_pages_ff,
+                bs, nspname, table_oid, tblname, idxname, relpages, fillfactor, is_na
+                -- , stattuple.pgstatindex(quote_ident(nspname)||'.'||quote_ident(idxname)) AS pst, index_tuple_hdr_bm, maxalign, pagehdr, nulldatawidth, nulldatahdrwidth, reltuples -- (DEBUG INFO)
+              FROM (
+                SELECT maxalign, bs, nspname, tblname, idxname, reltuples, relpages, relam, table_oid, fillfactor,
+                  ( index_tuple_hdr_bm +
+                      maxalign - CASE -- Add padding to the index tuple header to align on MAXALIGN
+                        WHEN index_tuple_hdr_bm%maxalign = 0 THEN maxalign
+                        ELSE index_tuple_hdr_bm%maxalign
+                      END
+                    + nulldatawidth + maxalign - CASE -- Add padding to the data to align on MAXALIGN
+                        WHEN nulldatawidth = 0 THEN 0
+                        WHEN nulldatawidth::integer%maxalign = 0 THEN maxalign
+                        ELSE nulldatawidth::integer%maxalign
+                      END
+                  )::numeric AS nulldatahdrwidth, pagehdr, pageopqdata, is_na
+                  -- , index_tuple_hdr_bm, nulldatawidth -- (DEBUG INFO)
+                FROM (
+                  SELECT
+                    i.nspname, i.tblname, i.idxname, i.reltuples, i.relpages, i.relam, a.attrelid AS table_oid,
+                    current_setting('block_size')::numeric AS bs, fillfactor,
+                    CASE -- MAXALIGN: 4 on 32bits, 8 on 64bits (and mingw32 ?)
+                      WHEN version() ~ 'mingw32' OR version() ~ '64-bit|x86_64|ppc64|ia64|amd64' THEN 8
+                      ELSE 4
+                    END AS maxalign,
+                    /* per page header, fixed size: 20 for 7.X, 24 for others */
+                    24 AS pagehdr,
+                    /* per page btree opaque data */
+                    16 AS pageopqdata,
+                    /* per tuple header: add IndexAttributeBitMapData if some cols are null-able */
+                    CASE WHEN max(coalesce(s.null_frac,0)) = 0
+                      THEN 2 -- IndexTupleData size
+                      ELSE 2 + (( 32 + 8 - 1 ) / 8) -- IndexTupleData size + IndexAttributeBitMapData size ( max num filed per index + 8 - 1 /8)
+                    END AS index_tuple_hdr_bm,
+                    /* data len: we remove null values save space using it fractionnal part from stats */
+                    sum( (1-coalesce(s.null_frac, 0)) * coalesce(s.avg_width, 1024)) AS nulldatawidth,
+                    max( CASE WHEN a.atttypid = 'pg_catalog.name'::regtype THEN 1 ELSE 0 END ) > 0 AS is_na
+                  FROM pg_attribute AS a
+                    JOIN (
+                      SELECT nspname, tbl.relname AS tblname, idx.relname AS idxname, idx.reltuples, idx.relpages, idx.relam,
+                        indrelid, indexrelid, indkey::smallint[] AS attnum,
+                        coalesce(substring(
+                          array_to_string(idx.reloptions, ' ')
+                           from 'fillfactor=([0-9]+)')::smallint, 90) AS fillfactor
+                      FROM pg_index
+                        JOIN pg_class idx ON idx.oid=pg_index.indexrelid
+                        JOIN pg_class tbl ON tbl.oid=pg_index.indrelid
+                        JOIN pg_namespace ON pg_namespace.oid = idx.relnamespace
+                      WHERE pg_index.indisvalid AND tbl.relkind = 'r' AND idx.relpages > 0
+                    ) AS i ON a.attrelid = i.indexrelid
+                    JOIN pg_stats AS s ON s.schemaname = i.nspname
+                      AND ((s.tablename = i.tblname AND s.attname = pg_catalog.pg_get_indexdef(a.attrelid, a.attnum, TRUE)) -- stats from tbl
+                      OR (s.tablename = i.idxname AND s.attname = a.attname))-- stats from functionnal cols
+                    JOIN pg_type AS t ON a.atttypid = t.oid
+                  WHERE a.attnum > 0
+                  GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9
+                ) AS s1
+              ) AS s2
+                JOIN pg_am am ON s2.relam = am.oid WHERE am.amname = 'btree'
+            ) AS sub
+            -- WHERE NOT is_na
+        ) AS ss
+    ) AS s
+    GROUP BY 1, 2
     ORDER BY 3 DESC
-    LIMIT 5
 ) TO STDOUT (NULL 'null');
 EOF
 )
 
 indexes_by_total_least_usage_sql=$(cat <<EOF
 SELECT
-    si.schemaname, indexrelname,
-    round(
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+         THEN s ELSE 'all the other' END AS s,
+    CASE WHEN rn <= $STAT_POSTGRES_OBJECTS_TOP_INDEXES_N
+         THEN r ELSE 'all the other' END AS r,
+    round(avg(v), 2) AS v,
+    sum(size)
+FROM (
+    SELECT
+        si.schemaname AS s, indexrelname AS r,
         si.idx_scan::numeric / (
             coalesce(n_tup_ins, 0) + coalesce(n_tup_upd, 0) -
             coalesce(n_tup_hot_upd, 0) + coalesce(n_tup_del, 0)
-        ), 2
-    )
-FROM pg_stat_user_indexes AS si
-JOIN pg_stat_user_tables AS st ON si.relid = st.relid
-join pg_index AS i ON i.indexrelid = si.indexrelid
-WHERE
-    NOT indisunique AND
-    (
-        coalesce(n_tup_ins, 0) + coalesce(n_tup_upd, 0) -
-        coalesce(n_tup_hot_upd, 0) + coalesce(n_tup_del, 0)
-    ) > 0
-ORDER BY 3, pg_relation_size(i.indexrelid::regclass) DESC
-LIMIT 5
+        ) AS v,
+        row_number() OVER (
+            ORDER BY
+                si.idx_scan::numeric / (
+                    coalesce(n_tup_ins, 0) + coalesce(n_tup_upd, 0) -
+                    coalesce(n_tup_hot_upd, 0) + coalesce(n_tup_del, 0)
+                )
+        ) AS rn,
+        pg_relation_size(i.indexrelid::regclass) AS size
+    FROM pg_stat_user_indexes AS si
+    JOIN pg_stat_user_tables AS st ON si.relid = st.relid
+    JOIN pg_index AS i ON i.indexrelid = si.indexrelid
+    WHERE
+        NOT indisunique AND
+        (
+            coalesce(n_tup_ins, 0) + coalesce(n_tup_upd, 0) -
+            coalesce(n_tup_hot_upd, 0) + coalesce(n_tup_del, 0)
+        ) > 0
+) AS s
+GROUP BY 1, 2
+ORDER BY 3, 4 DESC
 EOF
 )
 
@@ -538,12 +779,15 @@ EOF
 )
 
 (
-    db_list=$($PSQL -XAt -c "$db_list_sql" 2>&1) ||
+    db_list_src=$(
+        $PSQL -Xc "\copy ($db_list_sql) to stdout (NULL 'null')" 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not get a database list'
             ['2m/detail']=$db_list))"
 
-    for db in $db_list; do
+    while IFS=$'\t' read -r -a l; do
+        db="${l[0]}"
+
         (
             src=$(
                 $PSQL -Xc \
@@ -616,7 +860,7 @@ EOF
                     message="Top tables by dead tuple count"
                     ;;
                 8)
-                    message="Top tables by dead tuple fraction"
+                    message="Top tables by dead tuple fraction (>10000 tupples)"
                     ;;
                 9)
                     message="Top tables by total autovacuum count"
@@ -652,7 +896,7 @@ EOF
             while IFS=$'\t' read -r -a l; do
                 case "${l[3]}" in
                 1)
-                    message="Top tables by total buffer cache miss fraction"
+                    message="Top tables by total buffer cache miss fraction (>10000 hits+reads)"
                     ;;
                 *)
                     die "$(declare -pA a=(
@@ -720,7 +964,7 @@ EOF
             while IFS=$'\t' read -r -a l; do
                 case "${l[3]}" in
                 1)
-                    message="Top indexes by total least fetch fraction"
+                    message="Top indexes by total least fetch fraction (>10000 read)"
                     ;;
                 *)
                     die "$(declare -pA a=(
@@ -750,7 +994,7 @@ EOF
             while IFS=$'\t' read -r -a l; do
                 case "${l[3]}" in
                 1)
-                    message="Top indexes by total buffer cache miss fraction"
+                    message="Top indexes by total buffer cache miss fraction (>10000 hits+reads)"
                     ;;
                 *)
                     die "$(declare -pA a=(
@@ -858,5 +1102,5 @@ EOF
                 done <<< "$src"
             fi
         )
-    done
+    done <<< "$db_list_src"
 )
