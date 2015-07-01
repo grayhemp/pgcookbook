@@ -129,9 +129,9 @@ dsn=$(
         sent_s=$(( ($src_sent - $snap_sent) / $interval ))
         avg_request_time=$(
             (( $requests > 0 )) && \
-            echo "scale=3; ($src_requests_time - $snap_requests_time) /" \
-                 "($requests * 1000)" | \
-            bc | awk '{printf "%.3f", $0}' || echo 'N/A')
+            echo $src_requests_time $snap_requests_time $requests \
+                | awk '{ printf "%.3f", ($1 - $2) / ($3 * 1000) }' || \
+                    echo 'null')
 
         info "$(declare -pA a=(
             ['1/message']='Requests count'
@@ -190,8 +190,8 @@ dsn=$(
 
     result=$(
         echo "$dbs_pools_src" \
-        | sed -r 's/([^|]+?\|){2}/scale=2; 100 * /' | sed 's/|/\//' | bc \
-        | sort -nr | head -n 1 | awk '{printf "%.2f", $0}')
+            | sed -r 's/([^|]+?\|){2}//' | sed 's/|/ /' \
+            | awk '{ printf "%.2f", 100 * $1 / $2 }' | sort -nr | head -n 1)
 
     result=${result:-null}
 
@@ -202,8 +202,9 @@ dsn=$(
 
     row_list=$(
         echo "$dbs_pools_src" \
-            | sed -r 's/(.+)([0-9]+)\|([0-9]+)/scale=2; print "\1", 100 * \2\/\3, "\n"/' \
-            | bc | sort -k 3nr -t '|' | head -n 5)
+            | sed -r 's/(.+)([0-9]+)\|([0-9]+)/\1 \2 \3/' \
+            | awk '{ printf $1"%.2f", 100 * $2 / $3 }' \
+            | sort -k 3nr -t '|' | head -n 5)
 
     regex='(\S+)\|(\S+)\|(\S+)$'
 
@@ -245,8 +246,8 @@ dsn=$(
             ['3m/detail']=$max_clients_conn))"
 
     result=$(
-        echo "scale=2; 100 * $clients_count / $max_clients_conn" | bc \
-        | awk '{printf "%.2f", $0}')
+        echo $clients_count $max_clients_conn \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
 
     info "$(declare -pA a=(
         ['1/message']='Client pool utilization, %'

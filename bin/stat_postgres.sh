@@ -176,8 +176,8 @@ EOF
         blks_read_s=$(( $blks_read / $interval ))
         hit_fraction=$(
             (( $blks_hit + $blks_read > 0 )) && \
-            echo "scale=2; $blks_hit / ($blks_hit + $blks_read)" | \
-            bc | awk '{printf "%.2f", $0}' || echo 'null')
+            echo $blks_hit $blks_read \
+                | awk '{printf "%.2f", $1 / ($1 + $2)}' || echo 'null')
         temp_files=$(( ${stat['temp_files']} - ${snap['temp_files']} ))
         temp_bytes=$(( ${stat['temp_bytes']} - ${snap['temp_bytes']} ))
         xact_commit=$(( ${stat['xact_commit']} - ${snap['xact_commit']} ))
@@ -519,16 +519,16 @@ EOF
 
         seq_scan_fraction=$(
             (( $seq_scan + $idx_scan > 0 )) &&
-            echo "scale=2; $seq_scan / ($seq_scan + $idx_scan)" \
-                | bc | awk '{printf "%.2f", $0}' || echo 'null')
+            echo $seq_scan $idx_scan \
+                | awk '{ printf "%.2f", $1 / ($1 + $2) }' || echo 'null')
         hot_update_fraction=$(
             (( $n_tup_upd > 0 )) &&
-            echo "scale=2; $n_tup_hot_upd / $n_tup_upd" \
-                | bc | awk '{printf "%.2f", $0}' || echo 'null')
+            echo $n_tup_hot_upd $n_tup_upd \
+                | awk '{ printf "%.2f", $1 / $2 }' || echo 'null')
         dead_tuple_fraction=$(
             (( $n_dead_tup + $n_live_tup > 0 )) &&
-            echo "scale=2; $n_dead_tup / ($n_dead_tup + $n_live_tup)" \
-                | bc | awk '{printf "%.2f", $0}' || echo 'null')
+            echo $n_dead_tup $n_live_tup \
+                | awk '{ printf "%.2f", $1 / ($1 + $2) }' || echo 'null')
 
         info "$(declare -pA a=(
             ['1/message']='Seq scan fraction'

@@ -72,26 +72,26 @@ touch $STAT_SYSTEM_FILE
             $irq_int + $softirq_int + $steal_int + $guest_int + $guest_nice_int
         ))
 
-        user=$(echo "scale=2; 100 * $user_int / $total_int" | \
-               bc | awk '{printf "%.2f", $0}')
-        nice=$(echo "scale=2; 100 * $nice_int / $total_int" | \
-               bc | awk '{printf "%.2f", $0}')
-        system=$(echo "scale=2; 100 * $system_int / $total_int" | \
-                 bc | awk '{printf "%.2f", $0}')
-        idle=$(echo "scale=2; 100 * $idle_int / $total_int" | \
-               bc | awk '{printf "%.2f", $0}')
-        iowait=$(echo "scale=2; 100 * $iowait_int / $total_int" | \
-                 bc | awk '{printf "%.2f", $0}')
-        irq=$(echo "scale=2; 100 * $irq_int / $total_int" | \
-                 bc | awk '{printf "%.2f", $0}')
-        softirq=$(echo "scale=2; 100 * $softirq_int / $total_int" | \
-                 bc | awk '{printf "%.2f", $0}')
-        steal=$(echo "scale=2; 100 * $steal_int / $total_int" | \
-                 bc | awk '{printf "%.2f", $0}')
-        guest=$(echo "scale=2; 100 * $guest_int / $total_int" | \
-                 bc | awk '{printf "%.2f", $0}')
-        guest_nice=$(echo "scale=2; 100 * $guest_nice_int / $total_int" | \
-                 bc | awk '{printf "%.2f", $0}')
+        user=$(echo $user_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        nice=$(echo $nice_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        system=$(echo $system_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        idle=$(echo $idle_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        iowait=$(echo $iowait_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        irq=$(echo $irq_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        softirq=$(echo $softirq_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        steal=$(echo $steal_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        guest=$(echo $guest_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
+        guest_nice=$(echo $guest_nice_int $total_int \
+            | awk '{printf "%.2f", 100 * $1 / $2}')
 
         info "$(declare -pA a=(
                 ['1/message']='CPU usage, %'

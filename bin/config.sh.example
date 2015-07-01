@@ -199,7 +199,7 @@ STAT_POSTGRES_OBJECTS_TOP_INDEXES_N=5
 
 # stat_skytools.sh
 
-STAT_SKYTOOLS_TOP_N=5
+STAT_SKYTOOLS_OBJECTS_TOP_N=5
 
 # stat_statements.sh
 
