@@ -89,18 +89,6 @@ function contains() {
 # N - key order, eg. -2 or 14
 # m - for multiline values with the 'plain' format
 
-function qq() {
-    if [[ "$1" =~ \"|\\|\/|\\b|\\f|\\n|\\r|\\t|\\u[0-9A-Fa-f]{4} ]]; then
-        printf '%q' "$1" | sed -r "s/^[$]?'|'$//g" | sed 's/"/\\"/g' \
-            | sed "s/\\\'/'/g" | sed -r 's/\\([ ,(){}])/\1/g' \
-            | sed -r 's/^(.*)$/"\1"/'
-    elif [[ "$1" =~ [\ ,(){}] ]]; then
-        printf '"%q"' "$1" | sed -r 's/\\([ ,(){}])/\1/g'
-    else
-        printf '"%q"' "$1"
-    fi
-}
-
 function to_plain() {
     local arr
     eval "declare -A arr=${1#*=}"
@@ -132,7 +120,7 @@ function to_plain() {
         elif contains 'timestamp host facility level pid' "$key_name"; then
             printf '%s%s' "$key_str" "${arr[$key]}"
         else
-            printf '%s%s' "$key_str" "$(to_plain_token "${arr[$key]}")"
+            printf '%s%s' "$key_str" "$(to_kv_token "${arr[$key]}")"
         fi
 
         if [[ ! "$key_flags" =~ m ]]; then
@@ -140,18 +128,6 @@ function to_plain() {
         fi
         (( index++ ))
     done <<< "$key_list"
-}
-
-function to_plain_token() {
-    if [[ -z "$1" ]]; then
-        echo -n '""'
-    elif [[ "$1" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
-        echo -n "$1"
-    elif [[ "$1" =~ ^[a-Z0-9_]+$ ]]; then
-        echo -n "$1"
-    else
-        qq "$1"
-    fi
 }
 
 function to_kv() {
@@ -180,7 +156,7 @@ function to_kv_token() {
     elif [[ "$1" =~ ^[a-Z0-9_-:.]+$ ]]; then
         echo -n "$1"
     else
-        qq "$1"
+        printf '"%s"' "$1"
     fi
 }
 
@@ -216,7 +192,7 @@ function to_json_value() {
     elif contains 'true false null' "$1"; then
         echo -n "$1"
     else
-        qq "$1"
+        printf '"%s"' "$1"
     fi
 }
 
