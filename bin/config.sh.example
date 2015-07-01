@@ -212,10 +212,13 @@ STAT_N=${STAT_N:-10}
 STAT_ORDER=${STAT_ORDER:-0}
 STAT_KEEP_SNAPSHOTS='7 days'
 
+# stat_system_programs.sh
+
+STAT_SYSTEM_TOP_N=5
+
 # stat_system.sh
 
 STAT_SYSTEM_FILE='/tmp/stat_system'
-STAT_SYSTEM_TOP_N=5
 
 # terminate_activity.sh
 
