@@ -140,7 +140,11 @@ BEGIN
                 GROUP BY normalized_query
             ), s AS (
                 SELECT
-                    total_time, blk_read_time, blk_write_time, calls, rows,
+                    sum(total_time) AS time,
+                    sum(blk_read_time) AS blk_read_time,
+                    sum(blk_write_time) AS blk_write_time,
+                    sum(calls) AS calls,
+                    sum(rows) AS rows,
                     regexp_replace(regexp_replace(regexp_replace(regexp_replace(
                         query,
                         E'\\\\?(::[a-zA-Z_]+)?(\\s*,\\s*\\\\?(::[a-zA-Z_]+)?)+', '?', 'gs'),
@@ -154,10 +158,16 @@ BEGIN
                     created = (
                         SELECT created FROM public.stat_statements
                         WHERE created < i_since ORDER BY created DESC LIMIT 1)
+                GROUP BY normalized_query
             ), t AS (
                 SELECT
-                    total_time, blk_read_time, blk_write_time, calls, rows,
-                    query,
+                    sum(total_time) AS time,
+                    sum(blk_read_time) AS blk_read_time,
+                    sum(blk_write_time) AS blk_write_time,
+                    sum(calls) AS calls,
+                    sum(rows) AS rows,
+                    (array_agg(
+                        query ORDER BY length(query)))[1] AS example_query,
                     regexp_replace(regexp_replace(regexp_replace(regexp_replace(
                         query,
                         E'\\\\?(::[a-zA-Z_]+)?(\\s*,\\s*\\\\?(::[a-zA-Z_]+)?)+', '?', 'gs'),
@@ -171,37 +181,30 @@ BEGIN
                     created = (
                         SELECT created FROM public.stat_statements
                         WHERE created < i_till ORDER BY created DESC LIMIT 1)
+                GROUP BY normalized_query
             ), q1 AS (
                 SELECT
-                    sum(t.total_time - coalesce(s.total_time, 0)) AS time,
-                    sum(
-                        t.blk_read_time -
-                        coalesce(s.blk_read_time, 0)) AS blk_read_time,
-                    sum(
-                        t.blk_write_time -
-                        coalesce(s.blk_write_time, 0)) AS blk_write_time,
-                    sum(t.rows - coalesce(s.rows, 0)) AS rows,
-                    sum(t.calls - coalesce(s.calls, 0)) AS calls,
+                    t.time - coalesce(s.time, 0) AS time,
+                    t.blk_read_time -
+                        coalesce(s.blk_read_time, 0) AS blk_read_time,
+                    t.blk_write_time -
+                        coalesce(s.blk_write_time, 0) AS blk_write_time,
+                    t.rows - coalesce(s.rows, 0) AS rows,
+                    t.calls - coalesce(s.calls, 0) AS calls,
                     t.normalized_query,
-                    (array_agg(
-                        t.query ORDER BY length(query)))[1] AS example_query
+                    t.example_query
                 FROM t LEFT JOIN s USING (normalized_query)
-                GROUP BY t.normalized_query
                 ORDER BY
                     CASE
-                        WHEN i_order = 0 THEN
-                            sum(t.total_time - coalesce(s.total_time, 0))
-                        WHEN i_order = 1 THEN
-                            sum(t.calls - coalesce(s.calls, 0))
+                        WHEN i_order = 0 THEN t.time - coalesce(s.time, 0)
+                        WHEN i_order = 1 THEN t.calls - coalesce(s.calls, 0)
                         WHEN i_order = 2 THEN
-                            sum(
-                                t.blk_read_time + t.blk_write_time -
+                            t.blk_read_time + t.blk_write_time - (
                                 coalesce(s.blk_read_time, 0) +
                                 coalesce(s.blk_write_time, 0))
                         ELSE
-                            sum(t.calls - coalesce(s.calls, 0)) -
-                            sum(
-                                t.blk_read_time + t.blk_write_time -
+                            t.calls - coalesce(s.calls, 0) -
+                            t.blk_read_time + t.blk_write_time - (
                                 coalesce(s.blk_read_time, 0) +
                                 coalesce(s.blk_write_time, 0))
                     END DESC
