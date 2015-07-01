@@ -181,21 +181,21 @@ TUNNEL_LOCK_FILE=${TUNNEL_LOCK_FILE:-"/tmp/ssh_tunnel.$TUNNEL_LOCK"}
 
 STAT_PGBOUNCER_FILE='/tmp/stat_pgbouncer'
 
-# stat_postgres.sh
-
-STAT_POSTGRES_FILE='/tmp/stat_postgres'
-
 # stat_postgres_buffercache.sh
 
 STAT_POSTGRES_BUFFERCACHE_TOP_DATABASES_N=5
 STAT_POSTGRES_BUFFERCACHE_TOP_TABLES_N=5
 STAT_POSTGRES_BUFFERCACHE_TOP_INDEXES_N=5
 
-# stat_postgres_buffercache.sh
+# stat_postgres_objects.sh
 
 STAT_POSTGRES_OBJECTS_TOP_DATABASES_N=5
 STAT_POSTGRES_OBJECTS_TOP_TABLES_N=5
 STAT_POSTGRES_OBJECTS_TOP_INDEXES_N=5
+
+# stat_postgres.sh
+
+STAT_POSTGRES_FILE='/tmp/stat_postgres'
 
 # stat_skytools.sh
 
