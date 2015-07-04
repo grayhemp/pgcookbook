@@ -419,7 +419,7 @@ TRUNCATE TABLE stat_statements;
 SELECT pg_stat_statements_reset();
 
 SELECT column1, /* 12 */ column2 -- 12
-FROM (VALUES (1, 2)) AS s; -- 34
+FROM (VALUES (1, 2)) AS s; -- 34 "abc"
 -- 56
 
 SELECT column1, /* 56 */ column2 -- 56
@@ -481,6 +481,13 @@ DELETE FROM public.stat_statements WHERE created < now() - '7 days'::interval;
 STAT_SNAPSHOT=true bash bin/stat_statements.sh
 
 bash bin/stat_statements.sh
+
+# json format test
+LOG_FORMAT=json STAT_N=10000 STAT_SINCE=$(date -I --date='-100 day') \
+    bash bin/stat_statements.sh \
+    | while read -r v; do echo "$v" | json_pp ; done >/dev/null
+
+LOG_FORMAT=json PORT=123 bash bin/stat_statements.sh 2>&1 | json_pp
 
 */
 

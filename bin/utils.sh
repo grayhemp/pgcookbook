@@ -155,6 +155,11 @@ function to_kv_token() {
         echo -n "$1"
     elif [[ "$1" =~ ^[a-Z0-9_-:.]+$ ]]; then
         echo -n "$1"
+    elif [[ "$1" =~ \"|\010|\f|\n|\r|\t ]]; then
+        v="$(printf '%s' "$1" \
+            | sed -r 's/(\"|\010|\f|$|\r|\t)/\\\1/g' \
+            | tr \\010\\f\\n\\r\\t bfnrt | sed 's/\\$//')"
+        printf '"%s"' "$v"
     else
         printf '"%s"' "$1"
     fi
@@ -171,7 +176,7 @@ function to_json() {
 
     local key_list=$(for key in "${!arr[@]}"; do echo "$key"; done | sort -n)
 
-    while read key; do
+    while read -r key; do
         [[ "$key" =~ ^(.+?\/)?(.+)$ ]]
         local key_flags="${BASH_REMATCH[1]}"
         local key_name="${BASH_REMATCH[2]}"
@@ -191,6 +196,11 @@ function to_json_value() {
         echo -n '""'
     elif contains 'true false null' "$1"; then
         echo -n "$1"
+    elif [[ "$1" =~ \"|\\|\/|\010|\f|\n|\r|\t ]]; then
+        v="$(printf '%s' "$1" \
+            | sed -r 's/(\"|\\|\/|\010|\f|$|\r|\t)/\\\1/g' \
+            | tr \\010\\f\\n\\r\\t bfnrt | sed 's/\\$//')"
+        printf '"%s"' "$v"
     else
         printf '"%s"' "$1"
     fi

@@ -404,6 +404,6 @@ EOF
             ['15/rows_avg']=${l[13]}
             ['16/users']=${l[14]}
             ['17/dbs']=${l[15]}
-            ['18m/example_query']=${l[16]}))"
+            ['18m/example_query']=$(printf '%b' "${l[16]}")))"
     done <<< "$src"
 fi
