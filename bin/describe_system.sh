@@ -127,10 +127,10 @@ source $(dirname $0)/utils.sh
 
 # filesystem mount point, device, type, options, disk space, usage
 
-part_list=$(ls -l /dev/disk/by-uuid/* | sed 's/.*\///' | sort)
+part_list=$(lsblk -ro KNAME,TYPE | grep ' part' | sed 's/ .*//' | sort)
 
 for part in $part_list; do
-    if [[ -z $(grep $part /proc/swaps | cut -d ' ' -f 1) ]]; then
+    if [[ ! -z "$(df | grep $part | cut -d ' ' -f 1)" ]]; then
         (
             regex="(\S+) (\S+) (\S+)% (\S+) (\S+) \((\S+)\)"
             src=$(
@@ -156,11 +156,12 @@ for part in $part_list; do
 
             info "$(declare -pA a=(
                 ['1/message']='Partition'
-                ['2/mount_point']=$mount_point
-                ['3/type']=$type
-                ['4/options']=$options
-                ['5/disk_space']=$disk_space
-                ['6/usage_percent']=$usage_percent))"
+                ['2/name']=$part
+                ['3/mount_point']=$mount_point
+                ['4/type']=$type
+                ['5/options']=$options
+                ['6/disk_space']=$disk_space
+                ['7/usage_percent']=$usage_percent))"
         )
     fi
 done
