@@ -132,10 +132,12 @@ BEGIN
                     replica_dsn = i_replica_dsn AND
                     created BETWEEN coalesce((
                         SELECT created FROM public.stat_statements
-                        WHERE created < i_since ORDER BY created DESC LIMIT 1
+                        WHERE replica_dsn = i_replica_dsn AND created < i_since
+                        ORDER BY created DESC LIMIT 1
                     ), 'epoch'::date) AND (
                         SELECT created FROM public.stat_statements
-                        WHERE created < i_till ORDER BY created DESC LIMIT 1
+                        WHERE replica_dsn = i_replica_dsn AND created < i_till
+                        ORDER BY created DESC LIMIT 1
                     )
                 GROUP BY normalized_query
             ), s AS (
@@ -157,7 +159,8 @@ BEGIN
                     replica_dsn = i_replica_dsn AND
                     created = (
                         SELECT created FROM public.stat_statements
-                        WHERE created < i_since ORDER BY created DESC LIMIT 1)
+                        WHERE replica_dsn = i_replica_dsn AND created < i_since
+                        ORDER BY created DESC LIMIT 1)
                 GROUP BY normalized_query
             ), t AS (
                 SELECT
@@ -180,7 +183,8 @@ BEGIN
                     replica_dsn = i_replica_dsn AND
                     created = (
                         SELECT created FROM public.stat_statements
-                        WHERE created < i_till ORDER BY created DESC LIMIT 1)
+                        WHERE replica_dsn = i_replica_dsn AND created < i_till
+                        ORDER BY created DESC LIMIT 1)
                 GROUP BY normalized_query
             ), q1 AS (
                 SELECT
