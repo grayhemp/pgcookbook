@@ -2,10 +2,25 @@
 
 # stat_pgbouncer.sh - PgBouncer statistics collecting script.
 #
-# Collects a variety of PgBouncer statistics. Do not forget to specify
-# an appropriate connection parameters for monitored instnces.
+# Collects and prints out:
 #
-# Copyright (c) 2014 Sergey Konoplev
+# - instance responsiveness
+# - client connection counts by state
+# - server connection counts by state
+# - maxwait time
+# - requests count
+# - received and sent bytes
+# - request time
+# - max database/user pool utilization
+# - per database/user pool utilization
+# - client pool utilization
+#
+# Recommended running frequency - once per 1 minute.
+#
+# Do not forget to specify appropriate connection parameters for
+# monitored instances.
+#
+# Copyright (c) 2015 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
@@ -18,7 +33,7 @@ dsn=$(
     echo $([ ! -z "$HOST" ] && echo "host=$HOST") \
          $([ ! -z "$PORT" ] && echo "port=$PORT"))
 
-# instance responsiveness value
+# instance responsiveness
 
 (
     info "$(declare -pA a=(

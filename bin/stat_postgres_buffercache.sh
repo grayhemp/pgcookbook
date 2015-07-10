@@ -2,8 +2,16 @@
 
 # stat_postgres_buffercache.sh - pg_buffercache stats collection.
 #
-# Collects a variety of statistics with the pg_buffercache
-# extension. Compatible with PostgreSQL >=9.2.
+# Collects and prints out:
+#
+# - shared buffers distribution
+# - top databases by shared buffers utilization
+# - top tables by shared buffers utilization
+# - top indexes by shared buffers utilization
+#
+# Recommended running frequency - once per 30 minutes.
+#
+# Compatible with PostgreSQL >=9.2.
 #
 # Copyright (c) 2015 Sergey Konoplev
 #

@@ -1,11 +1,15 @@
 #!/bin/bash
 
-# stat_postgres.sh - PostgreSQL system statistics collection script.
+# stat_postgres_system.sh - PostgreSQL system statistics collection script.
 #
-# Collects a variety of system level PostgreSQL statistics like
-# processes and filesystem specific ones.
+# Collects and prints out:
 #
-# Copyright (c) 2014-2015 Sergey Konoplev
+# - postgres processes count
+# - data size for filesystem except xlog, xlog
+#
+# Recommended running frequency - once per 1 minute.
+#
+# Copyright (c) 2015 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 

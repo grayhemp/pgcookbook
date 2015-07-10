@@ -2,7 +2,14 @@
 
 # stat_system_programs.sh - running programs statistics collecting script.
 #
-# Collects a variety of system statistics for running programs.
+# Collects and prints out:
+#
+# - top programs by CPU
+# - top programs by RSS
+# - top programs by precesse count
+# - top programs by thread count
+#
+# Recommended running frequency - once per 1 minute.
 #
 # Copyright (c) 2015 Sergey Konoplev
 #

@@ -2,10 +2,42 @@
 
 # stat_postgres.sh - PostgreSQL instance statistics collection script.
 #
-# Collects a variety of PostgreSQL instance related
-# statistics. Compatible with PostgreSQL >=9.2.
+# Collects and prints out:
 #
-# Copyright (c) 2014-2015 Sergey Konoplev
+# - instance responsiveness
+# - data size for databases
+# - activity by state count
+# - activity by state max age of transaction
+# - lock waiting activity count
+# - lock waiting activity age min, max
+# - deadlocks count
+# - block operations count for buffer cache hit, read
+# - buffer cache hit fraction
+# - temp files count
+# - temp data written size
+# - transactions count committed and rolled back
+# - tuple extraction count fetched and returned
+# - tuple operations count inserted, updated and deleted
+# - locks by granted count
+# - prepared transaction count
+# - prepared transaction age min, max
+# - bgwritter checkpoint count scheduled, requested
+# - bgwritter checkpoint time write, sync
+# - bgwritter buffers written by method count checkpoint, bgwriter and backends
+# - bgwritter event count maxwritten stops, backend fsyncs
+# - conflict with recovery count by type
+# - replication connection count
+# - seq scan change fraction value
+# - hot update change fraction value
+# - dead and live tuple count dead, live
+# - dead tuple fraction value
+# - vacuum and analyze counts vacuum, analyze, autovacuum, autoanalyze
+#
+# Recommended running frequency - once per 1 minute.
+#
+# Compatible with PostgreSQL >=9.2.
+#
+# Copyright (c) 2015 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 

@@ -6,6 +6,8 @@
 #
 # - per database PgQ version
 #
+# Recommended running frequency - once per 1 hour.
+#
 # Copyright (c) 2015 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>

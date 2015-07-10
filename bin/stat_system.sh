@@ -2,10 +2,25 @@
 
 # stat_system.sh - system statistics collecting script.
 #
-# Collects a variety of system statistics from /proc, autodetects
-# partitions and network interfaces.
+# Collects and prints out:
 #
-# Copyright (c) 2014 Sergey Konoplev
+# - load average 1, 5, 15
+# - CPU user, nice, system, idle, iowait, other
+# - memory total, used, free, buffers, cached
+# - swap total, used, free
+# - context switch count
+# - pages in, out
+# - swap pages in, out
+# - disk IO count read, write
+# - disk IO size read, write
+# - disk IO time read, write
+# - disk IO request queue time, weighted time
+# - disk space
+# - network bytes sent and received
+# - network packets sent and received
+# - network errors
+#
+# Copyright (c) 2015 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 

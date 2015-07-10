@@ -13,8 +13,12 @@
 # clean snapshots that are older than and period. If STAT_REPLICA_DSN
 # is specified it performs the operation on this particular streaming
 # replica. Do not put dbname in the STAT_REPLICA_DSN it will be
-# substituted as STAT_DBNAME, automatically. Compatible with
-# PostgreSQL >=9.2.
+# substituted as STAT_DBNAME, automatically.
+#
+# Recommended running frequency - once per 1 hour for reports and once
+# per 5 minutes for snapshots.
+#
+# Compatible with PostgreSQL >=9.2.
 #
 # Copyright (c) 2013-2015 Sergey Konoplev
 #

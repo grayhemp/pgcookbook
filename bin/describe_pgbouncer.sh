@@ -7,8 +7,10 @@
 # - version
 # - important settings
 #
-# Do not forget to specify an appropriate connection parameters for
-# monitored instnces.
+# Recommended running frequency - once per 1 hour.
+#
+# Do not forget to specify appropriate connection parameters for
+# monitored instances.
 #
 # Copyright (c) 2015 Sergey Konoplev
 #

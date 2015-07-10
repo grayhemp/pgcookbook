@@ -2,8 +2,20 @@
 
 # stat_skytools.sh - cluster wide Skytools stats collecting script.
 #
-# Collects cluster wide Skytools statistics. Compatible with Skytools
-# versions >=3.0.
+# Collects and prints out:
+#
+# - max queue ticker lag
+# - max queue ticker lag fraction of idle period
+# - total queue events per second
+# - max consumers lag
+# - max consumers last seen age
+# - total consumer pending events
+# - number of queues
+# - number of consumers
+#
+# Recommended running frequency - once per 1 minute.
+#
+# Compatible with Skytools versions >=3.0.
 #
 # Copyright (c) 2015 Sergey Konoplev
 #

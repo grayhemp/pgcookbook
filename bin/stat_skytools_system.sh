@@ -3,8 +3,13 @@
 # stat_skytools_system.sh - system level Skytools stats collecting
 # script.
 #
-# Collects a variety of system stats for Skytools. Compatible with
-# Skytools versions >=3.0.
+# Collects and prints out:
+#
+# - pgqd is running
+#
+# Recommended running frequency - once per 1 minute.
+#
+# Compatible with Skytools versions >=3.0.
 #
 # Copyright (c) 2015 Sergey Konoplev
 #

@@ -1,9 +1,16 @@
 #!/bin/bash
 
-# stat_skytools.sh - Skytools objects stats collecting script.
+# stat_skytools_objects.sh - Skytools objects stats collecting script.
 #
-# Collects statistics on a variety of Skytools objects. Compatible
-# with Skytools versions >=3.0.
+# Collects and prints out:
+#
+# - per database top queues by ticker lag
+# - per database top consumers by lag
+# - per database top consumers by last seen age
+#
+# Recommended running frequency - once per 1 minute.
+#
+# Compatible with Skytools versions >=3.0.
 #
 # Copyright (c) 2015 Sergey Konoplev
 #

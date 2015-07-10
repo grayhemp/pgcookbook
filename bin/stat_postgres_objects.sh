@@ -2,8 +2,32 @@
 
 # stat_postgres_objects.sh - PostgreSQL objects statistics collection script.
 #
-# Collects a variety of statistics about objects in the PostgreSQL
-# cluster. Compatible with PostgreSQL >=9.2.
+# Collects and prints out:
+#
+# - top databases by size
+# - top tables by total size
+# - top tables by tuple count
+# - top tables by total fetched tuples
+# - top tables by total inserted, updated and deleted rows
+# - top tables by total seq scan row count
+# - top tables by total least HOT-updated rows, n_tup_upd - n_tup_hot_upd
+# - top tables by dead tuple count
+# - top tables by dead tuple fraction
+# - top tables by total autovacuum count
+# - top tables by total autoanalyze count
+# - top tables by total buffer cache miss fraction
+# - top tables by approximate bloat fraction
+# - top indexes by total size
+# - top indexes by total least fetch fraction
+# - top indexes by total buffer cache miss fraction
+# - top indexes by approximate bloat fraction
+# - top indexes by total least usage ratio
+# - redundant indexes
+# - foreign keys with no indexes
+#
+# Recommended running frequency - once per 20 minutes.
+#
+# Compatible with PostgreSQL >=9.2.
 #
 # Copyright (c) 2015 Sergey Konoplev
 #
