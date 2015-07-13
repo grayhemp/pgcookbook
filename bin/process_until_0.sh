@@ -16,14 +16,27 @@ total_processed=0
 processed=1
 sql=$(readall)
 
+processing_start_time=$(timer)
+
 while [ $processed -gt 0 ]; do
-    result=$($PSQL -X -c "$sql" $PROCESS_DBNAME 2>&1) || \
-        die "Can not process: $result."
+    result=$($PSQL -X -c "$sql" $PROCESS_DBNAME 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not complete processing'
+            ['2/processed_count']=$total_processed
+            ['3m/error']=$result))"
 
     processed=$(echo $result | cut -d ' ' -f 2,3 | sed 's/^.* //')
     (( total_processed+=processed ))
 
-    progress "Processed $total_processed rows."
+    progress "$(declare -pA a=(
+        ['1/message']='Processed rounds'
+        ['2/count']=$total_processed))"
 done
 
 echo
+
+processing_time=$(timer $processing_start_time)
+
+info "$(declare -pA a=(
+    ['1/message']='Execution time, s'
+    ['2/processing']=${processing_time:-null}))"
