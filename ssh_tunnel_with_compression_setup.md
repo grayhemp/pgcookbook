@@ -36,8 +36,10 @@ settings see [config.sh.example](bin/config.sh.example).
     test -z "$TUNNEL_HOST" && TUNNEL_HOST='host2'
     TUNNEL_COMP_LEVEL=2
     TUNNEL_RETRY_DELAY=60
+    test -z "$TUNNEL_LOCK" && \
+        TUNNEL_LOCK="$TUNNEL_PORT-$TUNNEL_HOST_PORT-$TUNNEL_HOST"
     test -z "$TUNNEL_LOCK_FILE" && \
-        TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_HOST.$TUNNEL_HOST_PORT"
+        TUNNEL_LOCK_FILE="/tmp/ssh_tunnel.$TUNNEL_LOCK"
 
 Note that the script assumes that you have already
 [setup SSH without password](ssh_without_password_setup.md) between

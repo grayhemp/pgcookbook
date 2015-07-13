@@ -7,32 +7,44 @@
 # true it prints a top STAT_N queries statistics report for the period
 # specified with STAT_SINCE and STAT_TILL. When STAT_ORDER is 0 - it
 # prints the top most time consuming queries, 1 - the most often
-# called, 2 - the most IO consuming ones. If STAT_SNAPSHOT is true
-# then it creates a snapshot of current statements statistics, resets
-# it to begin collecting another one and clean snapshots that are
-# older than and period. If STAT_REPLICA_DSN is specified it performs
-# the operation on this particular streaming replica. Do not put
-# dbname in the STAT_REPLICA_DSN it will be substituted as
-# STAT_DBNAME, automatically. Compatible with PostgreSQL >=9.2.
+# called, 2 - the most IO consuming, 3 - the most CPU consuming
+# ones. If STAT_SNAPSHOT is true then it creates a snapshot of current
+# statements statistics and clean snapshots that are older than and
+# period. If STAT_REPLICA_DSN is specified it performs the operation
+# on this particular streaming replica. Do not put dbname in the
+# STAT_REPLICA_DSN it will be substituted as STAT_DBNAME,
+# automatically.
 #
-# Copyright (c) 2013-2014 Sergey Konoplev
+# Recommended running frequency - once per 1 hour for reports and once
+# per 5 minutes for snapshots.
+#
+# Compatible with PostgreSQL >=9.2.
+#
+# Copyright (c) 2013-2015 Sergey Konoplev
 #
 # Sergey Konoplev <gray.ru@gmail.com>
 
 source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
-table_version=1
-function_version=2
+table_version=2
+function_version=6
 
 sql=$(cat <<EOF
 DO \$do\$
 DECLARE name text;
 BEGIN
-    CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+    IF
+        NOT EXISTS (
+            SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')
+    THEN
+        CREATE EXTENSION pg_stat_statements;
+    END IF;
 
     IF '$STAT_REPLICA_DSN' <> '' THEN
-        CREATE EXTENSION IF NOT EXISTS dblink;
+        IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'dblink') THEN
+            CREATE EXTENSION dblink;
+        END IF;
     END IF;
 
     IF
@@ -79,113 +91,212 @@ BEGIN
 
         CREATE OR REPLACE FUNCTION public.stat_statements_get_report(
             i_replica_dsn text,
-            i_since timestamp with time zone, i_till timestamp with time zone,
-            i_n integer, i_order integer, -- 0 - time, 1 - calls, 2 - IO
-            OUT o_report text)
-        RETURNS text LANGUAGE 'plpgsql' AS \$function\$
+            i_since timestamp with time zone,
+            i_till timestamp with time zone,
+            i_n integer,
+            i_order integer, -- 0 - time, 1 - calls, 2 - IO time, 3 - CPU time
+            OUT o_position integer,
+            OUT o_time numeric(18,3),
+            OUT o_io_time numeric(18,3),
+            OUT o_cpu_time numeric(18,3),
+            OUT o_time_percent numeric(5,2),
+            OUT o_io_time_percent numeric(5,2),
+            OUT o_cpu_time_percent numeric(5,2),
+            OUT o_time_avg numeric(18,3),
+            OUT o_io_time_avg numeric(18,3),
+            OUT o_cpu_time_avg numeric(18,3),
+            OUT o_calls integer,
+            OUT o_calls_percent numeric(5,2),
+            OUT o_rows bigint,
+            OUT o_rows_avg numeric(18,3),
+            OUT o_users text,
+            OUT o_dbs text,
+            OUT o_query text
+        )
+        RETURNS SETOF record LANGUAGE 'plpgsql' AS \$function\$
         BEGIN
-            WITH q1 AS (
+            RETURN QUERY (
+            WITH du AS (
                 SELECT
-                    sum(total_time) AS time,
-                    sum(blk_read_time + blk_write_time) AS io_time,
-                    sum(total_time) / sum(calls) AS time_avg,
-                    sum(blk_read_time + blk_write_time) /
-                        sum(calls) AS io_time_avg,
-                    sum(rows) AS rows,
-                    sum(rows) / sum(calls) AS rows_avg,
-                    sum(calls) AS calls,
-                    string_agg(usename, ' ') AS users,
-                    string_agg(datname, ' ') AS dbs,
-                    regexp_replace(
-                        regexp_replace(query, '--(.*?$)', '-- [comment]', 'gm'),
-                        E'\\\\/\\\\*(.*?)\\\\*\\\\/', '/* [comment] */', 'gs'
-                    ) AS raw_query
+                    array_agg(
+                        DISTINCT usename::text ORDER BY usename::text) AS users,
+                    array_agg(
+                        DISTINCT datname::text ORDER BY datname::text) AS dbs,
+                    regexp_replace(regexp_replace(regexp_replace(regexp_replace(
+                        query,
+                        E'\\\\?(::[a-zA-Z_]+)?(\\s*,\\s*\\\\?(::[a-zA-Z_]+)?)+', '?', 'gs'),
+                        E'\\\\$[0-9]+(::[a-zA-Z_]+)?(\\s*,\\s*\\\\$[0-9]+(::[a-zA-Z_]+)?)*', '$N', 'gs'),
+                        E'--.*?$', '', 'gm'),
+                        E'\\\\/\\\\*.*?\\\\*\\\\/', '', 'gs')
+                        AS normalized_query
                 FROM public.stat_statements
                 LEFT JOIN pg_catalog.pg_user ON userid = usesysid
                 LEFT JOIN pg_catalog.pg_database ON dbid = pg_database.oid
                 WHERE
                     replica_dsn = i_replica_dsn AND
-                    created > i_since AND created <= i_till
-                GROUP BY raw_query
+                    created BETWEEN coalesce((
+                        SELECT created FROM public.stat_statements
+                        WHERE replica_dsn = i_replica_dsn AND created < i_since
+                        ORDER BY created DESC LIMIT 1
+                    ), 'epoch'::date) AND (
+                        SELECT created FROM public.stat_statements
+                        WHERE replica_dsn = i_replica_dsn AND created < i_till
+                        ORDER BY created DESC LIMIT 1
+                    )
+                GROUP BY normalized_query
+            ), s AS (
+                SELECT
+                    sum(total_time) AS time,
+                    sum(blk_read_time) AS blk_read_time,
+                    sum(blk_write_time) AS blk_write_time,
+                    sum(calls) AS calls,
+                    sum(rows) AS rows,
+                    regexp_replace(regexp_replace(regexp_replace(regexp_replace(
+                        query,
+                        E'\\\\?(::[a-zA-Z_]+)?(\\s*,\\s*\\\\?(::[a-zA-Z_]+)?)+', '?', 'gs'),
+                        E'\\\\$[0-9]+(::[a-zA-Z_]+)?(\\s*,\\s*\\\\$[0-9]+(::[a-zA-Z_]+)?)*', '$N', 'gs'),
+                        E'--.*?$', '', 'gm'),
+                        E'\\\\/\\\\*.*?\\\\*\\\\/', '', 'gs')
+                        AS normalized_query
+                FROM public.stat_statements
+                WHERE
+                    replica_dsn = i_replica_dsn AND
+                    created = (
+                        SELECT created FROM public.stat_statements
+                        WHERE replica_dsn = i_replica_dsn AND created < i_since
+                        ORDER BY created DESC LIMIT 1)
+                GROUP BY normalized_query
+            ), t AS (
+                SELECT
+                    sum(total_time) AS time,
+                    sum(blk_read_time) AS blk_read_time,
+                    sum(blk_write_time) AS blk_write_time,
+                    sum(calls) AS calls,
+                    sum(rows) AS rows,
+                    (array_agg(
+                        query ORDER BY length(query)))[1] AS example_query,
+                    regexp_replace(regexp_replace(regexp_replace(regexp_replace(
+                        query,
+                        E'\\\\?(::[a-zA-Z_]+)?(\\s*,\\s*\\\\?(::[a-zA-Z_]+)?)+', '?', 'gs'),
+                        E'\\\\$[0-9]+(::[a-zA-Z_]+)?(\\s*,\\s*\\\\$[0-9]+(::[a-zA-Z_]+)?)*', '$N', 'gs'),
+                        E'--.*?$', '', 'gm'),
+                        E'\\\\/\\\\*.*?\\\\*\\\\/', '', 'gs')
+                        AS normalized_query
+                FROM public.stat_statements
+                WHERE
+                    replica_dsn = i_replica_dsn AND
+                    created = (
+                        SELECT created FROM public.stat_statements
+                        WHERE replica_dsn = i_replica_dsn AND created < i_till
+                        ORDER BY created DESC LIMIT 1)
+                GROUP BY normalized_query
+            ), q1 AS (
+                SELECT
+                    t.time - coalesce(s.time, 0) AS time,
+                    t.blk_read_time -
+                        coalesce(s.blk_read_time, 0) AS blk_read_time,
+                    t.blk_write_time -
+                        coalesce(s.blk_write_time, 0) AS blk_write_time,
+                    t.rows - coalesce(s.rows, 0) AS rows,
+                    t.calls - coalesce(s.calls, 0) AS calls,
+                    t.normalized_query,
+                    t.example_query
+                FROM t LEFT JOIN s USING (normalized_query)
                 ORDER BY
                     CASE
-                        WHEN i_order = 0 THEN sum(total_time)
-                        WHEN i_order = 1 THEN sum(calls)
-                        ELSE sum(blk_read_time + blk_write_time)
+                        WHEN i_order = 0 THEN t.time - coalesce(s.time, 0)
+                        WHEN i_order = 1 THEN t.calls - coalesce(s.calls, 0)
+                        WHEN i_order = 2 THEN
+                            t.blk_read_time + t.blk_write_time - (
+                                coalesce(s.blk_read_time, 0) +
+                                coalesce(s.blk_write_time, 0))
+                        ELSE
+                            t.calls - coalesce(s.calls, 0) -
+                            t.blk_read_time + t.blk_write_time - (
+                                coalesce(s.blk_read_time, 0) +
+                                coalesce(s.blk_write_time, 0))
                     END DESC
             ), q2 AS (
                 SELECT
-                    time, io_time, time_avg, io_time_avg, rows, rows_avg, calls,
-                    users, dbs,
+                    time, rows, calls,
+                    blk_read_time + blk_write_time AS io_time,
+                    time - blk_read_time + blk_write_time AS cpu_time,
+                    time::numeric / calls AS time_avg,
+                    (blk_read_time + blk_write_time)::numeric /
+                        calls AS io_time_avg,
+                    (time - blk_read_time + blk_write_time)::numeric /
+                        calls AS cpu_time_avg,
+                    rows::numeric / calls AS rows_avg,
+                    calls::numeric / sum(calls) OVER () AS calls_percent,
                     CASE
-                        WHEN sum(time) OVER () > 0 THEN
-                            100 * time / sum(time) OVER ()
-                        ELSE 0 END AS time_percent,
+                        WHEN sum(time) OVER () > 0
+                        THEN 100.0 * time / sum(time) OVER ()
+                        ELSE 0
+                    END AS time_percent,
                     CASE
-                        WHEN sum(time) OVER () > 0 THEN
-                            100 * io_time / sum(time) OVER ()
-                        ELSE 0 END AS io_time_percent,
+                        WHEN sum(blk_read_time + blk_write_time) OVER () > 0
+                        THEN
+                            100.0 * (blk_read_time + blk_write_time) /
+                                sum(blk_read_time + blk_write_time) OVER ()
+                        ELSE 0
+                    END AS io_time_percent,
                     CASE
-                        WHEN sum(io_time) OVER () > 0 THEN
-                            100 * io_time / sum(io_time) OVER ()
-                        ELSE 0 END AS io_time_perc_rel,
-                    100 * calls / sum(calls) OVER () AS calls_percent,
+                        WHEN
+                            sum(
+                                time -
+                                blk_read_time + blk_write_time) OVER () > 0
+                        THEN
+                            100.0 * (time - blk_read_time + blk_write_time) /
+                                sum(
+                                    time -
+                                    blk_read_time + blk_write_time) OVER ()
+                        ELSE 0
+                    END AS cpu_time_percent,
                     CASE
-                        WHEN row_number() OVER () > i_n THEN 'other'
-                        ELSE raw_query END AS query,
+                        WHEN row_number() OVER () > i_n
+                        THEN 'all the other'
+                        ELSE array_to_string(users, ', ')
+                    END AS users,
                     CASE
-                        WHEN row_number() OVER () > i_n THEN i_n + 1
-                        ELSE row_number() OVER () END AS row_number
-                FROM q1
+                        WHEN row_number() OVER () > i_n
+                        THEN 'all the other'
+                        ELSE array_to_string(dbs, ', ')
+                    END AS dbs,
+                    CASE
+                        WHEN row_number() OVER () > i_n
+                        THEN 'all the other'
+                        ELSE example_query
+                    END AS example_query
+                FROM q1 LEFT JOIN du USING (normalized_query)
+                WHERE calls > 0
             ), q3 AS (
                 SELECT
-                    row_number,
                     sum(time)::numeric(18,3) AS time,
                     sum(io_time)::numeric(18,3) AS io_time,
+                    sum(cpu_time)::numeric(18,3) AS cpu_time,
                     sum(time_percent)::numeric(5,2) AS time_percent,
                     sum(io_time_percent)::numeric(5,2) AS io_time_percent,
-                    sum(io_time_perc_rel)::numeric(5,2) AS io_time_perc_rel,
-                    sum(time_avg)::numeric(18,3) AS time_avg,
-                    sum(io_time_avg)::numeric(18,3) AS io_time_avg,
-                    sum(calls) AS calls,
+                    sum(cpu_time_percent)::numeric(5,2) AS cpu_time_percent,
+                    avg(time_avg)::numeric(18,3) AS time_avg,
+                    avg(io_time_avg)::numeric(18,3) AS io_time_avg,
+                    avg(cpu_time_avg)::numeric(18,3) AS cpu_time_avg,
+                    sum(calls)::integer AS calls,
                     sum(calls_percent)::numeric(5,2) AS calls_percent,
-                    sum(rows) AS rows,
-                    (
-                        sum(rows)::numeric / sum(calls)
-                    )::numeric(18,3) AS rows_avg,
-                    array_to_string(
-                        array(
-                            SELECT DISTINCT unnest(
-                                string_to_array(string_agg(users, ' '), ' '))
-                        ), ', '
-                    ) AS users,
-                    array_to_string(
-                        array(
-                            SELECT DISTINCT unnest(
-                                string_to_array(string_agg(dbs, ' '), ' '))
-                        ), ', '
-                    ) AS dbs,
-                    query
+                    sum(rows)::bigint AS rows,
+                    avg(rows_avg)::numeric(18,3) AS rows_avg,
+                    users, dbs, example_query
                 FROM q2
-                GROUP by query, row_number
-                ORDER BY row_number
+                GROUP BY users, dbs, example_query
+                ORDER BY
+                    CASE
+                        WHEN i_order = 0 THEN sum(time)
+                        WHEN i_order = 1 THEN sum(calls)
+                        WHEN i_order = 2 THEN sum(io_time)
+                        ELSE sum(cpu_time)
+                    END DESC
             )
-            SELECT INTO o_report string_agg(
-                format(
-                    E'Position: %s\n' ||
-                    E'Time: %s%%, %s ms, %s ms avg\n' ||
-                    E'IO time: %s%% (%s%% rel), %s ms, %s ms avg\n' ||
-                    E'Calls: %s%%, %s\n' ||
-                    E'Rows: %s, %s avg\n' ||
-                    E'Users: %s\n'||
-                    E'Databases: %s\n\n%s',
-                    row_number, time_percent, time, time_avg, io_time_percent,
-                    io_time_perc_rel, io_time, io_time_avg, calls_percent,
-                    calls, rows, rows_avg, users, dbs, query),
-                E'\n\n')
-            FROM q3;
-
-            RETURN;
+            SELECT (row_number() OVER ())::integer AS position, *
+            FROM q3);
         END \$function\$;
 
         FOR name IN
@@ -201,23 +312,24 @@ BEGIN
 END \$do\$;
 EOF
 )
-error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
-    die "Can not create environment: $error."
+
+error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) ||
+    die "$(declare -pA a=(
+        ['1/message']='Can not create environment'
+        ['2m/detail']=$error))"
 
 if $STAT_SNAPSHOT; then
     delete_sql=$(cat <<EOF
 DELETE FROM public.stat_statements
 WHERE created < now() - '$STAT_KEEP_SNAPSHOTS'::interval;
 EOF
-)
+    )
 
-    if [ -z $STAT_REPLICA_DSN ]; then
+    if [[ -z "$STAT_REPLICA_DSN" ]]; then
         sql=$(cat <<EOF
 $delete_sql
 INSERT INTO public.stat_statements
 SELECT '', now(), * FROM pg_stat_statements;
-
-SELECT pg_stat_statements_reset();
 EOF
         )
     else
@@ -247,34 +359,59 @@ SELECT '$STAT_REPLICA_DSN', now(), * FROM dblink(
     blk_read_time double precision,
     blk_write_time double precision
 );
-
-SELECT * FROM dblink(
-    '$STAT_REPLICA_DSN dbname=$STAT_DBNAME',
-    'SELECT pg_stat_statements_reset()'
-) AS s(t text);
 EOF
         )
     fi
 
-    error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
-        die "Can not get a snapshot: $error."
-else
-    test $STAT_ORDER -eq 0 && order='time'
-    test $STAT_ORDER -eq 1 && order='calls'
-    test $STAT_ORDER -eq 2 && order='IO time'
+    error=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not make a snapshot'
+            ['2m/detail']=$error))"
 
-    if [ -z $STAT_REPLICA_DSN ]; then
-        info "Origin report ordered by $order."
+    info "$(declare -pA a=(
+        ['1/message']='Snapshot has been made'))"
+else
+    [[ $STAT_ORDER -eq 0 ]] && order='time'
+    [[ $STAT_ORDER -eq 1 ]] && order='calls'
+    [[ $STAT_ORDER -eq 2 ]] && order='IO time'
+    [[ $STAT_ORDER -eq 3 ]] && order='CPU time'
+
+    if [[ -z "$STAT_REPLICA_DSN" ]]; then
+        message="Origin report ordered by $order"
     else
-        info "Replica report for '$STAT_REPLICA_DSN' ordered by $order."
+        message="Replica report for '$STAT_REPLICA_DSN' ordered by $order"
     fi
 
-   sql=$(cat <<EOF
-SELECT public.stat_statements_get_report(
-    '$STAT_REPLICA_DSN', '$STAT_SINCE', '$STAT_TILL', $STAT_N, $STAT_ORDER);
+    sql=$(cat <<EOF
+SELECT * FROM public.stat_statements_get_report(
+    '$STAT_REPLICA_DSN', '$STAT_SINCE', '$STAT_TILL', $STAT_N, $STAT_ORDER)
 EOF
     )
-    report=$($PSQL -XAt -c "$sql" $STAT_DBNAME 2>&1) || \
-        die "Can not get a report: $report."
-    echo "$report"
+
+    src=$($PSQL -Xc "\copy ($sql) to stdout (NULL 'null')" $STAT_DBNAME 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a report'
+            ['2m/detail']=$src))"
+
+    while IFS=$'\t' read -r -a l; do
+        info "$(declare -pA a=(
+            ['1/message']=$message
+            ['2/position']=${l[0]}
+            ['3/time']=${l[1]}
+            ['4/io_time']=${l[2]}
+            ['5/cpu_time']=${l[3]}
+            ['6/time_percent']=${l[4]}
+            ['7/io_time_percent']=${l[5]}
+            ['8/cpu_time_percent']=${l[6]}
+            ['9/time_avg']=${l[7]}
+            ['10/io_time_avg']=${l[8]}
+            ['11/cpu_time_avg']=${l[9]}
+            ['12/calls']=${l[10]}
+            ['13/calls_percent']=${l[11]}
+            ['14/rows']=${l[12]}
+            ['15/rows_avg']=${l[13]}
+            ['16/users']=${l[14]}
+            ['17/dbs']=${l[15]}
+            ['18m/example_query']=$(printf '%b' "${l[16]}")))"
+    done <<< "$src"
 fi
