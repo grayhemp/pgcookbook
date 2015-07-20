@@ -125,7 +125,7 @@ MATVIEWS_DBNAME_LIST='dbname1 dbname2'
 
 # replica_lag.sh
 
-LAG_DBNAME='dbname1'
+LAG_DBNAME='postgres'
 LAG_DSN=${LAG_DSN:-}
 LAG_RECEIVE=$((32 * 1024 * 1024))
 LAG_REPLAY=$((32 * 1024 * 1024))
