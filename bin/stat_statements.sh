@@ -28,7 +28,7 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 table_version=2
-function_version=6
+function_version=7
 
 sql=$(cat <<EOF
 DO \$do\$
@@ -78,7 +78,7 @@ BEGIN
             FROM pg_catalog.pg_proc AS p
             LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = pronamespace
             WHERE nspname = 'public' AND proname = 'stat_statements_get_report'
-        ) IS DISTINCT FROM '$function_version'
+        ) IS DISTINCT FROM '$function_version' OR TRUE
     THEN
         FOR name IN
             SELECT p.oid::regprocedure
@@ -202,73 +202,68 @@ BEGIN
                     t.normalized_query,
                     t.example_query
                 FROM t LEFT JOIN s USING (normalized_query)
-                ORDER BY
-                    CASE
-                        WHEN i_order = 0 THEN t.time - coalesce(s.time, 0)
-                        WHEN i_order = 1 THEN t.calls - coalesce(s.calls, 0)
-                        WHEN i_order = 2 THEN
-                            t.blk_read_time + t.blk_write_time - (
-                                coalesce(s.blk_read_time, 0) +
-                                coalesce(s.blk_write_time, 0))
-                        ELSE
-                            t.calls - coalesce(s.calls, 0) -
-                            t.blk_read_time + t.blk_write_time - (
-                                coalesce(s.blk_read_time, 0) +
-                                coalesce(s.blk_write_time, 0))
-                    END DESC
             ), q2 AS (
                 SELECT
                     time, rows, calls,
                     blk_read_time + blk_write_time AS io_time,
-                    time - blk_read_time + blk_write_time AS cpu_time,
+                    time - (blk_read_time + blk_write_time) AS cpu_time,
                     time::numeric / calls AS time_avg,
                     (blk_read_time + blk_write_time)::numeric /
                         calls AS io_time_avg,
-                    (time - blk_read_time + blk_write_time)::numeric /
+                    (time - (blk_read_time + blk_write_time))::numeric /
                         calls AS cpu_time_avg,
                     rows::numeric / calls AS rows_avg,
-                    calls::numeric / sum(calls) OVER () AS calls_percent,
+                    calls::numeric / sum(calls) OVER v AS calls_percent,
                     CASE
-                        WHEN sum(time) OVER () > 0
-                        THEN 100.0 * time / sum(time) OVER ()
+                        WHEN sum(time) OVER v > 0
+                        THEN 100.0 * time / sum(time) OVER v
                         ELSE 0
                     END AS time_percent,
                     CASE
-                        WHEN sum(blk_read_time + blk_write_time) OVER () > 0
+                        WHEN sum(blk_read_time + blk_write_time) OVER v > 0
                         THEN
                             100.0 * (blk_read_time + blk_write_time) /
-                                sum(blk_read_time + blk_write_time) OVER ()
+                                sum(blk_read_time + blk_write_time) OVER v
                         ELSE 0
                     END AS io_time_percent,
                     CASE
                         WHEN
                             sum(
                                 time -
-                                blk_read_time + blk_write_time) OVER () > 0
+                                (blk_read_time + blk_write_time)) OVER v > 0
                         THEN
-                            100.0 * (time - blk_read_time + blk_write_time) /
+                            100.0 * (time - (blk_read_time + blk_write_time)) /
                                 sum(
                                     time -
-                                    blk_read_time + blk_write_time) OVER ()
+                                    (blk_read_time + blk_write_time)) OVER v
                         ELSE 0
                     END AS cpu_time_percent,
                     CASE
-                        WHEN row_number() OVER () > i_n
+                        WHEN row_number() OVER w > i_n
                         THEN 'all the other'
                         ELSE array_to_string(users, ', ')
                     END AS users,
                     CASE
-                        WHEN row_number() OVER () > i_n
+                        WHEN row_number() OVER w > i_n
                         THEN 'all the other'
                         ELSE array_to_string(dbs, ', ')
                     END AS dbs,
                     CASE
-                        WHEN row_number() OVER () > i_n
+                        WHEN row_number() OVER w > i_n
                         THEN 'all the other'
                         ELSE example_query
                     END AS example_query
                 FROM q1 LEFT JOIN du USING (normalized_query)
                 WHERE calls > 0
+                WINDOW w AS (
+                    ORDER BY
+                        CASE
+                            WHEN i_order = 0 THEN time
+                            WHEN i_order = 1 THEN calls
+                            WHEN i_order = 2 THEN blk_read_time + blk_write_time
+                            ELSE time - (blk_read_time + blk_write_time)
+                        END DESC
+                ), v AS ()
             ), q3 AS (
                 SELECT
                     sum(time)::numeric(18,3) AS time,
