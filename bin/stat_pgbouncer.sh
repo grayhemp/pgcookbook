@@ -11,8 +11,8 @@
 # - requests count
 # - received and sent bytes
 # - request time
-# - max database/user pool utilization
-# - per database/user pool utilization
+# - max database/user pool utilization (sv_active + sv_idle)
+# - per database/user pool utilization (sv_active + sv_idle)
 # - client pool utilization
 #
 # Recommended running frequency - once per 1 minute.
@@ -145,7 +145,7 @@ dsn=$(
         avg_request_time=$(
             (( $requests > 0 )) && \
             echo $src_requests_time $snap_requests_time $requests \
-                | awk '{ printf "%.3f", ($1 - $2) / ($3 * 1000) }' || \
+                | awk '{ printf "%.3f\n", ($1 - $2) / ($3 * 1000) }' || \
                     echo 'null')
 
         info "$(declare -pA a=(
@@ -178,8 +178,8 @@ dsn=$(
             ['3m/detail']=$error))"
 )
 
-# max database/user pool utilization
-# per database/user pool utilization
+# max database/user pool utilization (sv_active + sv_idle)
+# per database/user pool utilization (sv_active + sv_idle)
 
 (
     dbs_src=$($PSQL -XAtc "SHOW DATABASES" pgbouncer 2>&1) ||
@@ -195,9 +195,9 @@ dsn=$(
             ['3m/detail']=$pools_src))"
 
     dbs_pools_src=$(
-        join -t '|' -o '2.1 2.2 2.3 1.2' \
+        join -t '|' -o '2.1 2.2 2.3 2.4 1.2' \
             <(echo "$dbs_src" | cut -d '|' -f 4,6 | sort) \
-            <(echo "$pools_src" | cut -d '|' -f 1,2,3 | sort) 2>&1) ||
+            <(echo "$pools_src" | cut -d '|' -f 1,2,5,6 | sort) 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not get a databses/pools utilization data'
             ['2/dsn']=$dsn
@@ -205,20 +205,21 @@ dsn=$(
 
     result=$(
         echo "$dbs_pools_src" \
-            | sed -r 's/([^|]+?\|){2}//' | sed 's/|/ /' \
-            | awk '{ printf "%.2f", 100 * $1 / $2 }' | sort -nr | head -n 1)
+            | sed -r 's/([^|]+?\|){2}//' | sed 's/|/ /g' \
+            | awk '{ printf "%.2f\n", 100 * ($1 + $2) / $3 }' \
+            | sort -nr | head -n 1)
 
     result=${result:-null}
 
     info "$(declare -pA a=(
-        ['1/message']='Max databse/user pool utilization, %'
+        ['1/message']='Max databse/user pool utilization (sv_active + sv_idle), %'
         ['2/dsn']=$dsn
         ['3/value']=$result))"
 
     row_list=$(
         echo "$dbs_pools_src" \
-            | sed -r 's/(.+)([0-9]+)\|([0-9]+)/\1 \2 \3/' \
-            | awk '{ printf $1"%.2f", 100 * $2 / $3 }' \
+            | sed -r 's/(.+)([0-9]+)\|([0-9]+)\|([0-9]+)/\1 \2 \3 \4/' \
+            | awk '{ printf $1"%.2f\n", 100 * ($2 + $3) / $4 }' \
             | sort -k 3nr -t '|' | head -n 5)
 
     regex='(\S+)\|(\S+)\|(\S+)$'
@@ -235,7 +236,7 @@ dsn=$(
         percent=${BASH_REMATCH[3]}
 
         info "$(declare -pA a=(
-            ['1/message']='Per databse/user pool utilization'
+            ['1/message']='Per databse/user pool utilization (sv_active + sv_idle), %'
             ['2/dsn']=$dsn
             ['3/db']=$db
             ['4/user']=$user
@@ -262,7 +263,7 @@ dsn=$(
 
     result=$(
         echo $clients_count $max_clients_conn \
-            | awk '{printf "%.2f", 100 * $1 / $2}')
+            | awk '{printf "%.2f\n", 100 * $1 / $2}')
 
     info "$(declare -pA a=(
         ['1/message']='Client pool utilization, %'
