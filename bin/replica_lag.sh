@@ -118,7 +118,7 @@ in_recovery=${BASH_REMATCH[4]}
 
 if [[ ${BASH_REMATCH[5]} == 't' ]]; then
     warn "$(declare -pA a=(
-        ['1/message']='Replica lags behind the threashold or is not in recovery'
+        ['1/message']='Replica lags behind the threashold or it is not in recovery'
         ['2/dsn']=$LAG_DSN))"
     out='warn'
 else
@@ -132,7 +132,7 @@ $out "$(declare -pA a=(
     ['4/replay_lag']=$replay_lag))"
 
 $out "$(declare -pA a=(
-    ['1/message']='Time lag, B'
+    ['1/message']='Time lag, s'
     ['2/dsn']=$LAG_DSN
     ['3/replay_age']=$replay_age))"
 
