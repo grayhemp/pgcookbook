@@ -82,9 +82,11 @@ EOF
 
             max_fraction=$(
                 echo $max_fraction ${l[1]} \
-                    | awk '{ printf "%.2f", ($1 < $2 ? $2 : $1) }')
+                    | awk '{ printf "%.2f\n", ($1 < $2 ? $2 : $1) }')
 
-            total_ev_per_sec=$(( $total_ev_per_sec + ${l[2]} ))
+            total_ev_per_sec=$(
+                echo $total_ev_per_sec ${l[2]} \
+                | awk '{ printf "%.3f\n", $1 + $2 }' )
         fi
     done <<< "$db_list_src"
 
