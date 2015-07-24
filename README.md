@@ -1,5 +1,7 @@
 # PgCookbook - a PostgreSQL documentation project
 
+[![Join the chat at https://gitter.im/grayhemp/pgcookbook](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/grayhemp/pgcookbook?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 The project is a continuously updating set of articles, scripts and
 configuration files made to help with PostgreSQL maintenance. The
 articles and files might be modified as new versions of software or
