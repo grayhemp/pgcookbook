@@ -41,14 +41,15 @@ done <<< "$src"
 # top programs by RSS
 
 src=$(
-    ps -eo comm,pmem --no-headers \
-        | awk '{ arr[$1] += $2 } END { for (i in arr) { print i, arr[i] } }' \
+    ps -eo comm,rss --no-headers \
+        | awk '{ arr[$1] += $2; t += $2 }
+               END { for (i in arr) { print i, 100 * arr[i] / t } }' \
         | sort -k 2nr \
         | awk 'BEGIN { i = 0 } \
                { if (i < '$STAT_SYSTEM_TOP_N') arr[$1] += $2; \
                  else arr["all the other"] += $2; \
                  i++ } \
-               END { for (i in arr) { print i"\t"arr[i] } }' \
+               END { for (i in arr) { printf "%s\t%.2f\n", i, arr[i] } }' \
         | sort -k 2nr -t $'\t')
 
 while IFS=$'\t' read -r -a l; do
