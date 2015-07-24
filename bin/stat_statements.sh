@@ -78,7 +78,7 @@ BEGIN
             FROM pg_catalog.pg_proc AS p
             LEFT JOIN pg_catalog.pg_namespace AS n ON n.oid = pronamespace
             WHERE nspname = 'public' AND proname = 'stat_statements_get_report'
-        ) IS DISTINCT FROM '$function_version' OR TRUE
+        ) IS DISTINCT FROM '$function_version'
     THEN
         FOR name IN
             SELECT p.oid::regprocedure
