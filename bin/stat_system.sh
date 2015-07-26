@@ -251,7 +251,7 @@ touch $STAT_SYSTEM_FILE
 
 # Processing partition stats
 
-part_list=$(lsblk -ro KNAME,TYPE | grep ' part' | sed 's/ .*//' | sort)
+part_list=$(lsblk -ro KNAME,TYPE | grep ' part' | sed 's/ .*//' | sort | uniq)
 
 for part in $part_list; do
     # disk IO count read, write
