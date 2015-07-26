@@ -28,7 +28,7 @@ source $(dirname $0)/config.sh
 source $(dirname $0)/utils.sh
 
 table_version=2
-function_version=7
+function_version=8
 
 sql=$(cat <<EOF
 DO \$do\$
@@ -213,7 +213,7 @@ BEGIN
                     (time - (blk_read_time + blk_write_time))::numeric /
                         calls AS cpu_time_avg,
                     rows::numeric / calls AS rows_avg,
-                    calls::numeric / sum(calls) OVER v AS calls_percent,
+                    100.0 * calls::numeric / sum(calls) OVER v AS calls_percent,
                     CASE
                         WHEN sum(time) OVER v > 0
                         THEN 100.0 * time / sum(time) OVER v
