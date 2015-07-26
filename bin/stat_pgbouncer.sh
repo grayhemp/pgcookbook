@@ -75,13 +75,13 @@ dsn=$(
     done <<< "$row_list"
 
     info "$(declare -pA a=(
-        ['1/message']='Client connection counts by stat'
+        ['1/message']='Client connection counts by state'
         ['2/dsn']=$dsn
         ['3/active']=$cl_active
         ['4/waiting']=$cl_waiting))"
 
     info "$(declare -pA a=(
-        ['1/message']='Server connection counts by stat'
+        ['1/message']='Server connection counts by state'
         ['2/dsn']=$dsn
         ['3/active']=$sv_active
         ['4/idle']=$sv_idle
