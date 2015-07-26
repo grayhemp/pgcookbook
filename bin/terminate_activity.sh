@@ -34,17 +34,17 @@ sql=$(cat <<EOF
 COPY (
     SELECT
         pg_terminate_backend($pid_column)::text, now() - xact_start,
-        datname, usename, application_name,
-        client_addr, client_hostname, client_port,
-        backend_start, xact_start, query_start, state_change,
-        waiting::text, state, query
+        datname, usename, nullif(application_name, ''),
+        nullif(client_addr::text, ''), nullif(client_hostname, ''),
+        nullif(client_port::text, ''), backend_start, xact_start, query_start,
+        state_change, waiting::text, state, query
     FROM pg_stat_activity
     WHERE $TERMINATE_CONDITIONS
 ) TO STDOUT (NULL 'null');
 EOF
 )
 
-src=$($PSQL -Xc "$sql" postgres 2>&1) ||
+src=$($PSQL -XAtc "$sql" postgres 2>&1) ||
     die "$(declare -pA a=(
         ['1/message']='Can not perform termination'
         ['2m/detail']=$src))"
