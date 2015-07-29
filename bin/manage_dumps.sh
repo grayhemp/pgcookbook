@@ -42,14 +42,35 @@ error=$($PGDUMPALL -g -f $DUMPS_LOCAL_DIR/$dump_dir/globals.sql 2>&1) ||
         ['1/message']='Can not dump globals'
         ['2m/error']=$error))"
 
+pbzip2_installed=true
+pbzip2 -V >/dev/null 2>&1
+if [[ $? == 0 ]]; then
+    note "$(declare -pA a=(
+        ['1/message']='pbzip2 is installed, using it'))"
+else
+    pbzip2_installed=false
+    note "$(declare -pA a=(
+        ['1/message']='pbzip2 is not installed, higly recommend installing it'))"
+fi
+
 for dbname in $DUMPS_DBNAME_LIST; do
-    error=$(
-        $PGDUMP -f $DUMPS_LOCAL_DIR/$dump_dir/$dbname.dump.gz \
-            -F c -Z 2 $dbname 2>&1) ||
+    if $pbzip2_installed; then
+	error=$((
+		$PGDUMP -F c -Z 0 $dbname | pbzip2 -1 -c \
+		    >$DUMPS_LOCAL_DIR/$dump_dir/$dbname.dump.bz2) 2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not dump the database'
             ['2/database']=$dbname
             ['3m/error']=$error))"
+    else
+	error=$(
+            $PGDUMP -f $DUMPS_LOCAL_DIR/$dump_dir/$dbname.dump.gz \
+		-F c -Z 1 $dbname 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not dump the database'
+            ['2/database']=$dbname
+            ['3m/error']=$error))"
+    fi
 done
 
 dump_time=$(timer $dump_start_time)
