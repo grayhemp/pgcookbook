@@ -33,6 +33,8 @@ dsn=$(
     echo $([ ! -z "$HOST" ] && echo "host=$HOST") \
          $([ ! -z "$PORT" ] && echo "port=$PORT"))
 
+export PGOPTIONS=
+
 # instance responsiveness
 
 (

@@ -33,15 +33,28 @@ source $(dirname $0)/utils.sh
             ['2m/detail']=$data_dir))"
 
     fs_size=$((
-        du -b --exclude pg_xlog -sL "$data_dir" | sed -r 's/\s+.+//') 2>&1) ||
-        die "$(declare -pA a=(
-            ['1/message']='Can not get a filesystem size data'
-            ['2m/detail']=$fs_size))"
+        du -b --exclude pg_xlog -sL "$data_dir" | sed -r 's/\s+.+//') 2>&1)
+    if [[ $? != 0 ]]; then
+        if [[ "$fs_size" =~ ^([^$'\n']+\ No\ such\ file\ or\ directory$'\n')+[0-9]+$ ]]; then
+            fs_size=$(echo "$fs_size" | tail -n 1)
+        else
+            die "$(declare -pA a=(
+                ['1/message']='Can not get a filesystem size data'
+                ['2m/detail']=$fs_size))"
+        fi
+    fi
 
-    wal_size=$((du -b -sL "$data_dir/pg_xlog" | sed -r 's/\s+.+//') 2>&1) ||
-        die "$(declare -pA a=(
-            ['1/message']='Can not get an xlog size data'
-            ['2m/detail']=$wal_size))"
+    wal_size=$((
+        du -b -sL "$data_dir/pg_xlog" | sed -r 's/\s+.+//') 2>&1) ||
+    if [[ $? != 0 ]]; then
+        if [[ "$wal_size" =~ ^([^$'\n']+\ No\ such\ file\ or\ directory$'\n')+[0-9]+$ ]]; then
+            wal_size=$(echo "$wal_size" | tail -n 1)
+        else
+            die "$(declare -pA a=(
+                ['1/message']='Can not get an xlog size data'
+                ['2m/detail']=$wal_size))"
+        fi
+    fi
 
     info "$(declare -pA a=(
         ['1/message']='Filesystem data size, B'
