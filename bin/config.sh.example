@@ -32,6 +32,8 @@ DSN=$(
          $([ ! -z "$PORT" ] && echo "-p $PORT") \
          $([ ! -z "$USER" ] && echo "-U $USER"))
 
+export PGOPTIONS='--client-min-messages=error'
+
 PSQL="/usr/bin/psql $DSN"
 PGDUMP="/usr/bin/pg_dump $DSN"
 PGRESTORE="/usr/bin/pg_restore $DSN"
