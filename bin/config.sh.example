@@ -181,7 +181,7 @@ TUNNEL_LOCK_FILE=${TUNNEL_LOCK_FILE:-"/tmp/ssh_tunnel.$TUNNEL_LOCK"}
 
 # stat_pgbouncer.sh
 
-STAT_PGBOUNCER_FILE=${STAT_PGBOUNCER_FILE:'/tmp/stat_pgbouncer'}
+STAT_PGBOUNCER_FILE=${STAT_PGBOUNCER_FILE:-'/tmp/stat_pgbouncer'}
 
 # stat_postgres_buffercache.sh
 
@@ -197,7 +197,7 @@ STAT_POSTGRES_OBJECTS_TOP_INDEXES_N=5
 
 # stat_postgres.sh
 
-STAT_POSTGRES_FILE=${STAT_POSTGRES_FILE:'/tmp/stat_postgres'}
+STAT_POSTGRES_FILE=${STAT_POSTGRES_FILE:-'/tmp/stat_postgres'}
 
 # stat_skytools.sh
 
@@ -220,7 +220,7 @@ STAT_SYSTEM_TOP_N=5
 
 # stat_system.sh
 
-STAT_SYSTEM_FILE=${STAT_SYSTEM_FILE:'/tmp/stat_system'}
+STAT_SYSTEM_FILE=${STAT_SYSTEM_FILE:-'/tmp/stat_system'}
 
 # terminate_activity.sh
 
