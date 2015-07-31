@@ -10,6 +10,9 @@ set -o pipefail
 
 source $(dirname $0)/config.sh
 
+# Turn off warnings, hints, etc
+export PGOPTIONS='--client-min-messages=error'
+
 # Logging
 
 base_headers=$(declare -Ap a=(
