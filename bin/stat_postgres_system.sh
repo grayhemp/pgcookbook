@@ -35,7 +35,7 @@ source $(dirname $0)/utils.sh
     fs_size=$((
         du -b --exclude pg_xlog -sL "$data_dir" | sed -r 's/\s+.+//') 2>&1)
     if [[ $? != 0 ]]; then
-        if [[ "$fs_size" =~ ^([^$'\n']+\ No\ such\ file\ or\ directory$'\n')+[0-9]+$ ]]; then
+        if [[ "$fs_size" =~ ^((du\:\ cannot\ access\ [^$'\n']+|[^$'\n']+\ No\ such\ file\ or\ directory)$'\n')+[0-9]+$ ]]; then
             fs_size=$(echo "$fs_size" | tail -n 1)
         else
             die "$(declare -pA a=(
@@ -47,7 +47,7 @@ source $(dirname $0)/utils.sh
     wal_size=$((
         du -b -sL "$data_dir/pg_xlog" | sed -r 's/\s+.+//') 2>&1) ||
     if [[ $? != 0 ]]; then
-        if [[ "$wal_size" =~ ^([^$'\n']+\ No\ such\ file\ or\ directory$'\n')+[0-9]+$ ]]; then
+        if [[ "$wal_size" =~ ^((du\:\ cannot\ access\ [^$'\n']+|[^$'\n']+\ No\ such\ file\ or\ directory)$'\n')+[0-9]+$ ]]; then
             wal_size=$(echo "$wal_size" | tail -n 1)
         else
             die "$(declare -pA a=(
