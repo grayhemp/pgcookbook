@@ -384,7 +384,7 @@ done
 
 iface_list=$(
     cat /proc/net/dev | sed -r 's/\s+/ /g' | sed -r 's/^ //g' \
-        | grep -E ' *\S+: ' | cut -d ' ' -f 1 | sed 's/://')
+        | grep -E ' *\S+: ' | cut -d ' ' -f 1 | sed 's/://' | sort | uniq)
 
 # network bytes sent and received
 # network packets sent and received
