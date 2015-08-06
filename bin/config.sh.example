@@ -102,6 +102,7 @@ DUMPS_ARCHIVE_DIR='/mnt/archive/dumps'
 DUMPS_KEEP_DAILY_PARTS='3 days'
 DUMPS_KEEP_WEEKLY_PARTS='1 month'
 DUMPS_KEEP_MONTHLY_PARTS='1 year'
+DUMPS_PBZIP2=false
 
 # manage_pitr.sh
 

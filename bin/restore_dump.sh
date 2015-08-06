@@ -61,7 +61,7 @@ if contains "$dbname_list" $RESTORE_DBNAME; then
                     ['4m/detail']=$error))"
 
             error=$(
-                $PGDUMP -F c -Z 2 -t $preserve \
+                $PGDUMP -F c -Z 1 -t $preserve \
                     -f $RESTORE_PRESERVE_DIR/$file $RESTORE_DBNAME 2>&1) ||
                 die "$(declare -pA a=(
                     ['1/message']='Can not preserve the table data'
