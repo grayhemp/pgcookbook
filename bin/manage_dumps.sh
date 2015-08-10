@@ -9,7 +9,9 @@
 # DUMPS_KEEP_DAILY_PARTS, DUMPS_KEEP_WEEKLY_PARTS and
 # DUMPS_KEEP_MONTHLY_PARTS. If DUMPS_LOCAL_DIR is not specified or is
 # empty then all the dumps are created directly in a date-named
-# directory in DUMPS_ARCHIVE_DIR.
+# directory in DUMPS_ARCHIVE_DIR. If DUMPS_PBZIP2 is set to true then
+# pbzip2 archiver will be used to compress the dump, however such
+# archives are currently incompatible with restore_dump.sh.
 #
 # Copyright (c) 2013 Sergey Konoplev
 #
