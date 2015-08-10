@@ -47,22 +47,33 @@ source $(dirname $0)/utils.sh
 # distribution name, version
 
 (
-    src=$(
-        (cat /etc/*release | grep -iE '^(name|version_id)=' \
-            | sed -r 's/(.*=|")//g' | paste -sd ' ') 2>&1) ||
+    name=$((
+        awk '/DISTRIB_ID=/' /etc/*-release | sed 's/DISTRIB_ID=//' \
+            | head -n 1) 2>&1) ||
         die "$(declare -pA a=(
-            ['1/message']='Can not get a distribution data'
-            ['2m/detail']=$src))"
+            ['1/message']='Can not get a distribution name from lsb file'
+            ['2m/detail']=$name))"
 
-    regex='(\S*) (\S*)'
-
-    [[ $src =~ $regex ]] ||
+    version=$((
+        awk '/DISTRIB_RELEASE=/' /etc/*-release | sed 's/DISTRIB_RELEASE=//' \
+            | sed 's/[.]0/./' | head -n 1) 2>&1) ||
         die "$(declare -pA a=(
-            ['1/message']='Can not match the distribution data'
-            ['2m/data']=$src))"
+            ['1/message']='Can not get a distribution version from lsb file'
+            ['2m/detail']=$version))"
 
-    name=${BASH_REMATCH[1]:-null}
-    version=${BASH_REMATCH[2]:-null}
+    if [ -z "$name" ]; then
+        name=$((awk '{print $1}' /etc/*-release | head -n 1) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a distribution name from one line file'
+            ['2m/detail']=$name))"
+    fi
+
+    if [ -z "$version" ]; then
+        version=$((awk '{print $3}' /etc/*-release | head -n 1) 2>&1) ||
+        die "$(declare -pA a=(
+            ['1/message']='Can not get a distribution version from one line file'
+            ['2m/detail']=$version))"
+    fi
 
     info "$(declare -pA a=(
         ['1/message']='Distribution'
