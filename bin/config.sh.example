@@ -82,7 +82,7 @@ SCHEMA_DIR='/mnt/archive/repo'
 SCHEMA_EXCLUDE_SCHEMA_SQL=$(cat <<EOF
 SELECT quote_ident(nspname)
 FROM pg_namespace
-WHERE nspname ~ '^(pgq.*|londiste)$'
+WHERE nspname ~ '^(pgq.*|londiste|_slony)$'
 EOF
 )
 SCHEMA_EXCLUDE_TABLE_SQL=$(cat <<EOF
