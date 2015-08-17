@@ -57,8 +57,7 @@ if contains "$dbname_list" $RESTORE_DBNAME; then
             [[ -f $RESTORE_PRESERVE_DIR/$file ]] &&
                 die "$(declare -pA a=(
                     ['1/message']='Preserved dump file allready exists'
-                    ['3/file']=$RESTORE_PRESERVE_DIR/$file
-                    ['4m/detail']=$error))"
+                    ['2/file']=$RESTORE_PRESERVE_DIR/$file))"
 
             error=$(
                 $PGDUMP -F c -Z 1 -t $preserve \
@@ -84,7 +83,7 @@ if $RESTORE_DROP; then
         error=$(
             $PSQL -o /dev/null -c \
                 "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
-                 WHERE datname = '$RESTORE_DBNAME'" 2>&1) ||
+                 WHERE datname = '$RESTORE_DBNAME'" postgres 2>&1) ||
             die "$(declare -pA a=(
                 ['1/message']='Can not terminate connections'
                 ['2m/detail']=$error))"
@@ -185,7 +184,7 @@ EOF
 
 error=$(
     ($PGRESTORE -F c -l $RESTORE_FILE \
-        | grep -vE "TABLE DATA ($filter_list|$filter_data_list|$filter_data_part_list) " \
+        | (grep -vE "TABLE DATA ($filter_list|$filter_data_list|$filter_data_part_list) " || echo -n ) \
         | tee /tmp/restore_dump.$$) 2>&1) ||
     die "$(declare -pA a=(
         ['1/message']='Can not make a filtered dump list'
@@ -202,7 +201,7 @@ error=$(
 
 error=$(
     ($PGRESTORE -F c -l $RESTORE_FILE \
-        | grep -E "TABLE DATA ($filter_data_part_list) " \
+        | (grep -E "TABLE DATA ($filter_data_part_list) " || echo -n ) \
         | tee /tmp/restore_dump.$$) 2>&1) ||
     die "$(declare -pA a=(
         ['1/message']='Can not make a data part dump list'

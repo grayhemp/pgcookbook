@@ -141,28 +141,26 @@ RESTORE_FILE=${RESTORE_FILE:-$(
     sort | tail -n 1)'/dbname1.dump.gz'}
 RESTORE_THREADS=4
 RESTORE_FILTER_SQL=$(cat <<EOF
-SELECT quote_ident(schemaname), quote_ident(tablename)
+SELECT schemaname, tablename
 FROM pg_tables
 WHERE tablename ~ 'temp1|temp2'
 EOF
 )
 RESTORE_FILTER_DATA_SQL=$(cat <<EOF
-SELECT quote_ident(schemaname), quote_ident(tablename)
+SELECT schemaname, tablename
 FROM pg_tables
 WHERE tablename ~ 'log1|log2'
 EOF
 )
 RESTORE_FILTER_DATA_PART_SQL=$(cat <<EOF
-SELECT
-    quote_ident(schemaname), quote_ident(tablename),
-    'status <> 1' AS conditions
+SELECT schemaname, tablename, 'status <> 1' AS conditions
 FROM pg_tables
 WHERE tablename ~ 'data1|data2'
 EOF
 )
 RESTORE_PRESERVE_DIR='/mnt/archive/tmp'
 RESTORE_PRESERVE_SQL=$(cat <<EOF
-SELECT quote_ident(schemaname), quote_ident(tablename)
+SELECT schemaname, tablename
 FROM pg_tables
 WHERE tablename ~ 'pres1|pres2'
 EOF

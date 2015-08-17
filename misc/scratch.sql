@@ -338,14 +338,31 @@ DELETE FROM pres1 WHERE id = 5;
 
 /*
 
-RESTORE_DBNAME=dbname1 bash bin/restore_dump.sh
+bash bin/restore_dump.sh
 
 */
 
+\c dbname1_latest
 SELECT * FROM table1;
 SELECT * FROM log1;
 SELECT * FROM data1;
 SELECT * FROM pres1;
+
+/*
+
+RESTORE_FILTER_SQL="SELECT schemaname, tablename, '' AS conditions FROM pg_tables LIMIT 0" \
+    bash bin/restore_dump.sh
+
+RESTORE_FILTER_DATA_SQL="SELECT schemaname, tablename, '' AS conditions FROM pg_tables LIMIT 0" \
+    bash bin/restore_dump.sh
+
+RESTORE_FILTER_DATA_PART_SQL="SELECT schemaname, tablename, '' AS conditions FROM pg_tables LIMIT 0" \
+    bash bin/restore_dump.sh
+
+RESTORE_PRESERVE_SQL="SELECT schemaname, tablename, '' AS conditions FROM pg_tables LIMIT 0" \
+    bash bin/restore_dump.sh
+
+*/
 
 -- ssh_tunnel.sh
 
