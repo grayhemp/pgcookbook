@@ -45,7 +45,7 @@ source $(dirname $0)/utils.sh
     fi
 
     wal_size=$((
-        du -b -sL "$data_dir/pg_xlog" | sed -r 's/\s+.+//') 2>&1) ||
+        du -b -sL "$data_dir/pg_xlog" | sed -r 's/\s+.+//') 2>&1)
     if [[ $? != 0 ]]; then
         if [[ "$wal_size" =~ ^((du\:\ cannot\ access\ [^$'\n']+|[^$'\n']+\ No\ such\ file\ or\ directory)$'\n')+[0-9]+$ ]]; then
             wal_size=$(echo "$wal_size" | tail -n 1)

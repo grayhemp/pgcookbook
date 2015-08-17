@@ -1103,27 +1103,35 @@ EOF
         )
 
         (
-            src=$($PSQL -Xc "$fk_without_indexes_sql" $db 2>&1) ||
-                die "$(declare -pA a=(
-                    ['1/message']='Can not get a foreign keys without indexes data'
-                    ['2/db']=$db
-                    ['3m/detail']=$src))"
-
-            if [[ -z "$src" ]]; then
-                info "$(declare -pA a=(
-                    ['1/message']='No foreign keys without indexes'
-                    ['2/db']=$db))"
-            else
-                while IFS=$'\t' read -r -a l; do
-                    info "$(declare -pA a=(
-                        ['1/message']='Foreign keys without indexes'
+            src=$($PSQL -Xc "$fk_without_indexes_sql" $db 2>&1)
+            if [[ $? != 0 ]]; then
+                if [[ "$src" =~ cache\ lookup\ failed\ for\ index ]]; then
+                    note "$(declare -pA a=(
+                        ['1/message']='Cache lookup failure while getting a foreign keys without indexes data'
+                        ['2m/detail']=$src))"
+                else
+                    die "$(declare -pA a=(
+                        ['1/message']='Can not get a foreign keys without indexes data'
                         ['2/db']=$db
-                        ['3/schema']=${l[0]}
-                        ['4/table']=${l[1]}
-                        ['5/fk']=${l[2]}
-                        ['6/parent_table']=${l[3]}
-                        ['7/collumns']=${l[4]}))"
-                done <<< "$src"
+                        ['3m/detail']=$src))"
+                fi
+            else
+                if [[ -z "$src" ]]; then
+                    info "$(declare -pA a=(
+                        ['1/message']='No foreign keys without indexes'
+                        ['2/db']=$db))"
+                else
+                    while IFS=$'\t' read -r -a l; do
+                        info "$(declare -pA a=(
+                            ['1/message']='Foreign keys without indexes'
+                            ['2/db']=$db
+                            ['3/schema']=${l[0]}
+                            ['4/table']=${l[1]}
+                            ['5/fk']=${l[2]}
+                            ['6/parent_table']=${l[3]}
+                            ['7/collumns']=${l[4]}))"
+                    done <<< "$src"
+                fi
             fi
         )
     done <<< "$db_list_src"
