@@ -132,7 +132,7 @@ $out "$(declare -pA a=(
     ['4/replay_lag']=$replay_lag))"
 
 $out "$(declare -pA a=(
-    ['1/message']='Time lag, s'
+    ['1/message']='Time lag, ms'
     ['2/dsn']=$LAG_DSN
     ['3/replay_age']=$replay_age))"
 
