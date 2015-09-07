@@ -80,7 +80,7 @@ else
             ['3m/detail']=$error))"
 
     error=$(
-        $PGBASEBACKUP -F t -Z 2 -c fast -x -D $PITR_LOCAL_DIR/$backup_dir \
+        $PGBASEBACKUP -F t -Z 1 -c fast -x -D $PITR_LOCAL_DIR/$backup_dir \
         2>&1) ||
         die "$(declare -pA a=(
             ['1/message']='Can not make a base backup'
