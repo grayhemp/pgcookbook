@@ -6,7 +6,7 @@ define replica1 2;
 define main 1;
 
 define conninfo1 'dbname=billing user=slony host=192.168.0.1 port=5432';
-define conninfo2 'dbname=billing user=slony host=192.168.0.1 port=5432';
+define conninfo2 'dbname=billing user=slony host=192.168.0.2 port=5432';
 
 cluster name = @cluster;
 
