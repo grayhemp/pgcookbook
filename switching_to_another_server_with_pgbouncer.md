@@ -70,7 +70,7 @@ tables and sequences.
 For streaming replication run the `CHECKPOINT` command a couple of
 times on the replica one after another to reduce the checkpoint time
 during the promotion. The time of the second run will give a hint of
-the approximate downtime.
+the approximate pause.
 
 For Slony1 write a script to do the promotion automatically.
 
