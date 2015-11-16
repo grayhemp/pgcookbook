@@ -149,10 +149,11 @@ for part in $part_list; do
             src=$(
                 join -o '1.1 1.2 1.5 1.6 2.5 2.6' \
                     <(df 2>/dev/null | sed -r 's/\s+/ /g' \
-                      | grep -E "$part " | sort | xargs -l bash -c "$( \
+                      | grep -E "$part " | sort -k 1b,1 \
+                      | xargs -l bash -c "$( \
                           echo 'echo $(ls -l $0 | sed -r 's/.* //' \
                           2>/dev/null || echo $0) $1 $2 $3 $4 $5 $6')") \
-                    <(mount -l | sort))
+                    <(mount -l | sort -k 1b,1))
 
             [[ $src =~ $regex ]] ||
                 die "$(declare -pA a=(

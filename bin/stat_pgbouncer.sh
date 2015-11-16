@@ -207,8 +207,9 @@ source $(dirname $0)/utils.sh
 
         dbs_pools_src=$(
             join -t '|' -o '2.1 2.2 2.3 2.4 1.2' \
-                <(echo "$dbs_src" | cut -d '|' -f 4,6 | sort) \
-                <(echo "$pools_src" | cut -d '|' -f 1,2,5,6 | sort) 2>&1) ||
+                <(echo "$dbs_src" | cut -d '|' -f 4,6 | sort -k 1b,1) \
+                <(echo "$pools_src" | cut -d '|' -f 1,2,5,6 | sort -k 1b,1) \
+                2>&1) ||
             die "$(declare -pA a=(
                 ['1/message']='Can not get a databses/pools utilization data'
                 ['2/dsn']=$dsn
