@@ -227,9 +227,10 @@ memory.
 
 To check if it is used by postgres execute the following command.
 
-    pmap -x PID | grep hugetlb.so
+    pmap -x $(pidof postgres) | grep huge
 
-Where `PID` is a process ID of any running postgres process.
+You might want to replace `postgres` here with your distribution 
+specific binary name, eg. `postmaster`.
 
 And this one is to check if it used at all.
 
