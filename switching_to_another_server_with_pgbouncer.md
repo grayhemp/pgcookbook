@@ -79,7 +79,7 @@ breath and try to do all the next steps without delays.
 
 Start the service window if it is needed.
 
-If your pgbouncer version is `<1.5.3` and your `pgboincer.ini`
+If your pgbouncer version is `<1.5.3` and your `pgbouncer.ini`
 contains so called autodb entries (like `* =`), then you will need to
 restart the pgbouncer on the origin (`host1`) to redirect clients.
 
